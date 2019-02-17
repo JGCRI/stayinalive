@@ -61,7 +61,7 @@ gents <- function(nbasin, nmonth, Tg = rep(0, nmonth), expalpha = 1.0/300.0, bet
 #'   \item{tstop}{End time for a recording period, in months since the last
 #' event.  Events during a period are deemed to occur at the end of the period.}
 #'   \item{Tg}{Temperature covariate}
-#'   \item{status}{Indicator of whether the period had an event.}
+#'   \item{drought}{Indicator of whether the period had a drought.}
 #' }
 #'
 #' This processing prepares the data in a time series of drought/no drought
@@ -163,4 +163,19 @@ ts2event <- function(ts, Tg, basinid, scenarioid, nbasin=300, neventmax=100,
                })
 
     do.call(rbind, wtimes)
+}
+
+
+#' @describeIn ts2event Convert a matrix of basin time series to an event data frame
+#'
+#' @param tsmat A matrix of basin time series. Each row of the matrix should be
+#' a time series for one basin.
+#' @importFrom foreach foreach %do% %dopar%
+#' @export
+tsmat2event <- function(ts, Tg, scenarioid, nbasin=300, neventmax=100,
+                        censored=FALSE)
+{
+    foreach(basinid=seq(1, nrow(ts)), .combine=rbind) %dopar% {
+        ts2event(ts[basinid,], Tg, basinid, scenarioid, nbasin, neventmax, censored)
+    }
 }

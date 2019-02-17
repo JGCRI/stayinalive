@@ -2,4 +2,8 @@
 
 export(gents)
 export(ts2event)
+export(tsmat2event)
 importFrom(assertthat,assert_that)
+importFrom(foreach,"%do%")
+importFrom(foreach,"%dopar%")
+importFrom(foreach,foreach)

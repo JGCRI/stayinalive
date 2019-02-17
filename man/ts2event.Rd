@@ -2,9 +2,13 @@
 % Please edit documentation in R/gendata.R
 \name{ts2event}
 \alias{ts2event}
+\alias{tsmat2event}
 \title{Convert a single-basin drought time series into a data frame of event data}
 \usage{
 ts2event(ts, Tg, basinid, scenarioid, nbasin = 300, neventmax = 100,
+  censored = FALSE)
+
+tsmat2event(ts, Tg, scenarioid, nbasin = 300, neventmax = 100,
   censored = FALSE)
 }
 \arguments{
@@ -26,6 +30,9 @@ This is also used to construct UIDs.}
 
 \item{censored}{Flag indicating whether we should account for left
 and right censoring (see details).}
+
+\item{tsmat}{A matrix of basin time series. Each row of the matrix should be
+a time series for one basin.}
 }
 \value{
 Data frame of event data.
@@ -49,7 +56,7 @@ period.}
   \item{tstop}{End time for a recording period, in months since the last
 event.  Events during a period are deemed to occur at the end of the period.}
   \item{Tg}{Temperature covariate}
-  \item{status}{Indicator of whether the period had an event.}
+  \item{drought}{Indicator of whether the period had a drought.}
 }
 
 This processing prepares the data in a time series of drought/no drought
@@ -64,3 +71,8 @@ right censored events are not included.  Likewise, we make no effort to
 adjust for the fact that for the first drought in a time series, we don't
 actually know the full time since the last drought.
 }
+\section{Functions}{
+\itemize{
+\item \code{tsmat2event}: Convert a matrix of basin time series to an event data frame
+}}
+
