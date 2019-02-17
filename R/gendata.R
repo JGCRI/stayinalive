@@ -76,6 +76,9 @@ gents <- function(nbasin, nmonth, Tg = rep(0, nmonth), expalpha = 1.0/300.0, bet
 #' adjust for the fact that for the first drought in a time series, we don't
 #' actually know the full time since the last drought.
 #'
+#' @section Note:
+#' Setting the \code{censored} flag to \code{TRUE} is not currently supported.
+#'
 #' @param ts Vector of monthly drought status.  0= no drought; >0= drought
 #' @param Tg Vector of \emph{annual} global mean temperature.
 #' @param basinid Numerical identifier for the basin.  This \emph{must} be
@@ -96,6 +99,9 @@ ts2event <- function(ts, Tg, basinid, scenarioid, nbasin=300, neventmax=100,
 {
     assert_that(censored==FALSE,
                 msg='Adjustment for censoring not yet implemented')
+
+    ## Start months for each year
+    yearstarts <- (seq_along(Tg)-1)*12 + 1
 
     ts[ts>0] <- 1
     rr <- rle(ts)
@@ -140,26 +146,27 @@ ts2event <- function(ts, Tg, basinid, scenarioid, nbasin=300, neventmax=100,
 
                    drought_data <-
                        data.frame(id=uid, basinid=basinid, dtime=dtime)
-                   event_data <- tmerge(drought_data[1:2], drought_data, id=id, drought=event(dtime))
+                   event_data <- survival::tmerge(drought_data[1:2], drought_data, id=id, drought=event(dtime))
 
                    ## Add the change in covariate events.  Global temperature is observed at
                    ## the beginning of each year.
                    waitstrt <- startmonth - dtime                 # start of the waiting period prior to this drought
                    wstrtyr <- as.integer(floor((waitstrt-1)/12)+1)  # year in which the waiting period started
                    wstrttemp <- Tg[wstrtyr]
-                   wendyr <- as.integer(floor((startmonth-1)/12)+1)  # year in which the waiting period ended
-                   ## Do we need to do something special if the drought started in the first month of a year?
-                   if(wendyr > wstrtyr) {
-                       yr <- seq(wstrtyr+1, wendyr)                # Absolute years in the waiting period
-                       waityr <- yr-wstrtyr                      # Year count in the waiting period
-                       tstart <- 12*waityr + 1 - waitstrt        # Month count in the waiting period, at yearly intervals
-                       temp <- Tg[yr]                            # Global mean temperature for each year
+
+                   ## Find the year changes that occur during the waiting period
+                   yearidx <- which(yearstarts > waitstrt & yearstarts <
+                                      startmonth)
+
+                   if(length(yearidx) > 0) {
+                       tstart <- yearstarts[yearidx] - waitstrt
+                       temp <- Tg[yearidx]                      # Global mean temperature for each year
                        gmtemp <- data.frame(id=uid, basinid=basinid, time=tstart, temp=temp)
                    }
                    else {
                        gmtemp <- data.frame(id=uid, basinid=basinid, time=0, temp=wstrttemp)
                    }
-                   tmerge(event_data, gmtemp, id=id, Tg=tdc(time, temp), options=list(tdcstart=wstrttemp))
+                   survival::tmerge(event_data, gmtemp, id=id, Tg=tdc(time, temp), options=list(tdcstart=wstrttemp))
                })
 
     do.call(rbind, wtimes)
@@ -172,10 +179,10 @@ ts2event <- function(ts, Tg, basinid, scenarioid, nbasin=300, neventmax=100,
 #' a time series for one basin.
 #' @importFrom foreach foreach %do% %dopar%
 #' @export
-tsmat2event <- function(ts, Tg, scenarioid, nbasin=300, neventmax=100,
+tsmat2event <- function(tsmat, Tg, scenarioid, nbasin=300, neventmax=100,
                         censored=FALSE)
 {
-    foreach(basinid=seq(1, nrow(ts)), .combine=rbind) %dopar% {
-        ts2event(ts[basinid,], Tg, basinid, scenarioid, nbasin, neventmax, censored)
+    foreach(basinid=seq(1, nrow(tsmat)), .combine=rbind) %dopar% {
+        ts2event(tsmat[basinid,], Tg, basinid, scenarioid, nbasin, neventmax, censored)
     }
 }

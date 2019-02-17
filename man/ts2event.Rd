@@ -8,7 +8,7 @@
 ts2event(ts, Tg, basinid, scenarioid, nbasin = 300, neventmax = 100,
   censored = FALSE)
 
-tsmat2event(ts, Tg, scenarioid, nbasin = 300, neventmax = 100,
+tsmat2event(tsmat, Tg, scenarioid, nbasin = 300, neventmax = 100,
   censored = FALSE)
 }
 \arguments{
@@ -75,4 +75,9 @@ actually know the full time since the last drought.
 \itemize{
 \item \code{tsmat2event}: Convert a matrix of basin time series to an event data frame
 }}
+
+\section{Note}{
+
+Setting the \code{censored} flag to \code{TRUE} is not currently supported.
+}
 
