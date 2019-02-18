@@ -1,0 +1,79 @@
+---
+title: "Survival model test"
+output: html_notebook
+---
+
+
+```{r setup}
+library(survival)        # standard R package for survival analysis
+library(stayinalive)     # functions we developed for processing time series.
+doParallel::registerDoParallel(cores=4)
+```
+
+
+Generate 100 years of data for 225 basins.  Temperature increases over the course of the century
+roughly according to Hector's RCP8.5 pathway.  Droughts are between 1 and 2 years long in this
+simulation.  The $\beta$ value of 0.5 means that each degree of global temperature change should
+produce about a 65% increase in drought risk relative to the baseline.
+
+```{r simdata}
+nyear <- 100
+nmonth <- 12*nyear
+nbasin <- 225
+
+Tgyr <- seq(0.75, 4.5, length.out=nyear)        # Approximately RCP8.5
+Tgmon <- rep(Tgyr, rep(12, length(Tgyr)))
+
+set.seed(867-5309)
+basindata <- gents(nbasin, nmonth, Tgmon, beta=0.5)
+```
+
+The code below converts the basin time series to the event data frame required by the `coxph`
+function.  Then we feed that to a simple Cox model.
+
+```{r surv}
+
+events <- tsmat2event(basindata, Tgyr, 1)
+events$basinid <- as.factor(events$basinid)
+cph <- coxph(Surv(tstart, tstop, drought)~Tg, data=events)
+summary(cph)
+```
+
+In this call we compute a clustered survival model, with basins as the clustering variable.
+The idea here is that events from the same basin might be more similar to each other than
+they are to events in other basins.  This has no effect on the estimate of $\beta$ (_i.e.,_ it
+will be the same as in the model above); however, there will be an additional estimate of the
+standard error (called the "robust standard error") that takes this into account.  We didn't
+actually include any basin effects in the simulated data, so the robust standard error shouldn't
+be that much different to the regular estimate.
+
+```{r survcluster}
+cph_clus <- coxph(Surv(tstart, tstop, drought) ~ Tg + cluster(basinid), data=events)
+summary(cph_clus)
+```
+
+In the next example, we include a frailty term.  In this formulation, not only are clustered
+items more similar to each other than they are to other observations, but they also have 
+slightly different intrinsic hazard rates.  The additional increment to the hazard rate (the
+"frailty" of the cluster) is chosen from a Gamma distribution with parameters that are solved
+for in the model fit.  I _think_ this is equivalent to a partial pooling model of the sort 
+described in McElreath (and elsewhere, of course), but I haven't exactly confirmed that.
+
+At any rate, we didn't include any basin fixed effects, so there shouldn't be much to see
+here.
+
+```{r survfrail}
+cph_frail <- coxph(Surv(tstart, tstop, drought) ~ Tg + frailty(basinid), data=events)
+summary(cph_frail)
+```
+
+We may also want to add interaction terms to allow for the possibility that different basins
+have different responses to climate change.  If results from previous papers are any guide, 
+this is almost certainly the case.  One possibility would be to use an interaction term, like
+in the example below.  As before, since we didn't actually include any of these effects in 
+our simulation, we shouldn't see much difference to our old results.
+
+```{r survinter}
+cph_inter <- coxph(Surv(tstart, tstop, drought) ~ Tg + basinid:Tg, data=events)
+summary(cph_inter)
+```
