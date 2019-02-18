@@ -5,11 +5,9 @@
 \alias{tsmat2event}
 \title{Convert a single-basin drought time series into a data frame of event data}
 \usage{
-ts2event(ts, Tg, basinid, scenarioid, nbasin = 300, neventmax = 100,
-  censored = FALSE)
+ts2event(ts, Tg, basinid, scenarioid, nbasin = 300, neventmax = 100)
 
-tsmat2event(tsmat, Tg, scenarioid, nbasin = 300, neventmax = 100,
-  censored = FALSE)
+tsmat2event(tsmat, Tg, scenarioid, nbasin = 300, neventmax = 100)
 }
 \arguments{
 \item{ts}{Vector of monthly drought status.  0= no drought; >0= drought}
@@ -27,9 +25,6 @@ values from the scenarioid and basinid.}
 
 \item{neventmax}{Maximum number of events for a single basin and scenario.
 This is also used to construct UIDs.}
-
-\item{censored}{Flag indicating whether we should account for left
-and right censoring (see details).}
 
 \item{tsmat}{A matrix of basin time series. Each row of the matrix should be
 a time series for one basin.}
@@ -65,19 +60,9 @@ events, and these will be treated as separate subjects.  The reason we do
 this is that it's the easiest way to account for the fact that droughts have
 duration, and while a drought is in progress you can't have another drought.
 This turns out to be rather difficult to do in a counting formulation.
-
-The intent is to use this data in a proportional hazard model, so by default
-right censored events are not included.  Likewise, we make no effort to
-adjust for the fact that for the first drought in a time series, we don't
-actually know the full time since the last drought.
 }
 \section{Functions}{
 \itemize{
 \item \code{tsmat2event}: Convert a matrix of basin time series to an event data frame
 }}
-
-\section{Note}{
-
-Setting the \code{censored} flag to \code{TRUE} is not currently supported.
-}
 
