@@ -1,0 +1,288 @@
+---
+title: "CDF and Quantile Confidence intervals."
+output:
+  html_notebook: default
+  pdf_document: default
+---
+
+## Introduction
+
+As we all know, empirical CDFs and quantiles derived from data can be very uncertain, especially for small
+sample sizes.  Here is an example using three draws from a standard normal distribution.  
+```{r ecdf_example}
+set.seed(867-5309)
+x1 <- rnorm(50)
+x2 <- rnorm(50)
+x3 <- rnorm(50)
+
+sapply(list(x1,x2,x3), quantile)
+plot(ecdf(x1), verticals=TRUE, pch='.', col='red')
+plot(ecdf(x2), verticals=TRUE, pch='.', col='blue', add=TRUE)
+plot(ecdf(x3), verticals=TRUE, pch='.', col='grey30', add=TRUE)
+
+```
+If the sample that produced a median estimate of -0.46 doesn't worry you, it should.  
+
+In order to be sure that our results are meaningful, we need to compute confidence intervals on these outputs
+so that we know how much they might vary from the particular values we happened to get from whatever data we 
+were looking at.
+
+## Empirical CDF Confidence intervals
+
+The first thing to know is that ECDF confidence intervals come in two flavors.  _Simultaneous_ confidence
+intervals seek to cover the entire CDF with a specified probability.  That is, if you estimate a 95% simultaneous
+confidence interval, then 95% of the time it will encompass the entire CDF.  This is a fairly strong guarantee, and
+it leads to correspondingly wide confidence intervals.  _Pointwise_ confidence intervals seek to cover each point
+with the specified probability.  This is a much weaker guarantee.  If you compute a 95% pointwise confidence interval,
+then the CI will have a 95% chance of covering each point on the CDF, but there is a high probability that some (roughly 5%) 
+of the CDF points will lie outside their confidence intervals.  This weaker guarantee leads to much tighter confidence
+intervals than you get with the simultaneous intervals.
+
+The second thing to know is that ECDF confidence intervals are confidence intervals on the distribution function $F(x)$.
+That is, if $F(x) = p$, your confidence interval is going to be expressed as something like $F(x) = p \pm \varepsilon$.
+Graphically, this can be expressed as an error envelope that follows the graph of the CDF _above_ and _below_ the estimator
+curve.  This is important because what we often want is confidence intervals on the Quantile function $Q = F^{-1}(p)$, which
+would look like an envelope that follows the graph of the CDF to the _left_ and _right_ of the estimator curve.  Although the
+CDF confidence intervals _imply_ such a curve, they don't give it to us directly.
+
+### Simultaneous confidence intervals with the DKW inequality
+
+The Dvoretzky–Kiefer–Wolfowitz inequality places probabilistic limits on the Kolmogorov-Smirnov statistic (i.e., the
+statistic that would be used in a K-S test between the ECDF and the true CDF)  Let $F_n$ be the empirical CDF, and 
+$F$ be the (unknown) true CDF.  The K-S statistic is
+$$D = \sup|F_n(x) - F(x)|.$$
+The DKW inequality tells us that for $n$ samples
+$$P(D > \varepsilon) \leq 2 e^{-2n\varepsilon^2}$$
+for any $\varepsilon > 0$.  We can convert this into a confidence interval by selecting a confidence level $\alpha$, setting
+$P(D>\varepsilon)$, and solving for $\varepsilon$.  When we do that, we get
+$$\varepsilon = \sqrt{\frac{\ln\sqrt{\frac{2}{\alpha}}}{n}}$$
+The true CDF then lies (entirely) between the curve $F(x) + \varepsilon$ and $F(x) - \varepsilon$ with probability $1-\alpha$.
+The most important features of this expression are that $\varepsilon$ scales as $1/\sqrt{n}$ and that it is independent of $x$.
+
+For our `x1` dataset, $n=50$, so we can calculate $\varepsilon$ for a 95% confidence interval as
+```{r dkwconf}
+n <- 50
+alpha <- 0.05
+eps <- sqrt(log(sqrt(2/alpha))/n)
+eps
+```
+This is very large.  It means that if $F_n(x) = 0.1$ (i.e., where the CDF crosses the 10th percentile), the value of the _true_
+CDF could be as high as `r signif(0.1+eps, 2)`, and there is _no_ value that could be ruled out on the low end.  The situation
+improves with a larger dataset, but only slowly.  If we were to double the size of the dataset, our $\varepsilon$ would decrease
+to `r eps/sqrt(2)`.
+
+### Pointwise confidence intervals
+
+Pointwise confidence intervals are based on the binomial distribution.  The idea is that if we are saying $F_n(x) = p$, what
+we really mean is that in $n$ observations we saw $k$ values less than $x$, and $p = k/n$.  That value of $p$ is the maximum
+likelihood estimator for the true value of $F(x)$, but the actual probability distribution for $F(x)$ is a beta distribution
+$$F(x) \sim B(k+1, n-k+1)$$
+This is almost the same as the distribution used in the Jeffreys Interval, which replaces $k+1$ and $n-k+1$ with $k+\frac{1}{2}$ 
+and $n-k+\frac{1}{2}$.  Both are Bayesian estimates, starting with slightly different priors.  The difference is too small to be
+concerned about.
+
+Getting a confidence interval from this distribution is conceptually straightforward.  Here are the 95% confidence intervals for
+$F_n(x)$ at the 10th percentile value of $x$.
+```{r betaconf}
+n <- 50
+q <- 0.1
+k <- floor(n*q)
+ci <- qbeta(c(0.025, 1-0.025), k+1, n-k+1)
+ci
+```
+
+So, the true CDF at our alleged 10th percentile value could be as low as `r ci[1]` or as high as `r ci[2]`.  Still very imprecise,
+but a bit tighter than what we got with the DKW inequality.
+
+Because there isn't a closed-form solution for this confidence interval, it's a little hard to assess how it scales with more data.
+For datasets with more than a few dozen or so data points this calculation can be reasonably well approximated with the equivalent
+expression from an approximation using a normal distribution.  In this approximation, $F(x) = F_n(x) \pm \varepsilon$, where 
+$$
+\varepsilon = z\sqrt{\frac{\hat{p}(1-\hat{p})}{n}},
+$$
+where $\hat{p} = F_n(x) = k/n$ is the estimate of the CDF, and $z$ is the z-score in a standard normal distribution for the 
+desired value of $\alpha$.  For a 95% confidence interval, $\alpha = 0.05$, and $z = 1.96$.  Comparing to the calculation 
+using the Beta distribution, if $\hat{p} = 0.1$
+```{r normconf}
+n <- 50
+q <- 0.1
+epsnorm <- 1.96 * sqrt(q*(1-q)/n)
+cinorm <- q + c(-epsnorm, epsnorm)
+cinorm
+```
+The width of this interval is about the same as the one derived from the Beta distribution, but it's shifted a bit to the 
+lower end.  I prefer to use the more exact expression, but one thing the approximation does is to allow us to see how this
+expression depends on the data.  As with the DKW formula, $\varepsilon$ decreases with the square root of $n$.  Unlike DKW, 
+this one is not constant for all $x$.  Instead, it is proportional to $\sqrt{F_n(x) (1-F_n(x))}$.  Thus, the bounds actually
+get tighter in absolute terms as you move to the tails of the distribution.  This is the equivalent of saying that if a value
+is the highest or lowest value in a dataset, you can be fairly confident that such values are uncommon (where "common" is 
+relative to the number of observations).  On the other hand, if a value appears near the middle of the dataset, it's likely
+to be a common result, but it's hard to say just where within the central core of the distribution it lies.
+
+## Quantile confidence intervals
+
+As we remarked above, when we draw the ECDF confidence intervals, it implies something about the confidence intervals for the
+quantile function, but it doesn't allow us to calculate them directly.  Actually doing this calculation is a little bit tricky, 
+but I found some good material on the subject at
+[Cross Validated](https://stats.stackexchange.com/a/284970) and in a [blog post](http://staff.math.su.se/hoehle/blog/2016/10/23/quantileCI.html)
+written by a math professor at Stockholm University.  
+
+Let's start by computing the _order statistics_, which is nothing more than a fancy way of saying, let's sort the observed
+values from smallest to largest.
+```{r orderstats}
+n <- length(x1)
+x1r <- sort(x1)
+cat(paste(signif(x1r[1:10], 3), collapse=', '), '...')
+```
+Next, we'll select a quantile value that we want to obtain a confidence interval for.  For this example we'll use $q = 0.1$,
+the 10th percentile.  The question we'll ask is, for each of these observations, if we _assume_ that it is the true 10th percentile,
+what is the probability that it wound up in the position it did.  For example, the lowest value is $x_1 =$ `r signif(x1r[1],3)`.  In order
+for it to have wound up as the lowest value, each draw had wind up greater than $x_1$.  _If_ $x_1$ were the true 10th percentile 
+value, the probability of this happening on each draw would be 0.9, and the probability of it happening on all 49 subsequent draws would
+be `r dbinom(0, n-1, 0.1)`, which is pretty small, but not inconceivable.  We can do the same exercise for $x_2$; it had to have exactly
+1 draw that wound up less, with a probability of `r dbinom(1, n-1, 0.1)`, and we can continue down the line.  (Note, by the way, that I
+am using $n-1$ in the expression for the binomial distribution, rather than $n$, as in the sources I cited.  I believe that $n-1$ is the
+correct way to do it, but the difference is small in any case.)  When you're finished, you have a discrete probability distribution where
+each of the discrete values is the probability that _that_ value would have wound up in its order position, had it in fact been the 10th
+percentile of the (unknown) true distribution.  With a few technical assumptions (see the sources above for elaboration), we can restate 
+this as the probability for each of our observed values that _it_ is the true 10th percentile of the distribution.
+
+All that remains now is to choose a confidence interval such that the sum of these probabilities over the confidence interval is greater
+than or equal to our chosen confidence level (95%, as is tradition).  We have to say "greater than or equal" rather than "equal" because 
+with a discrete distribution there may not be any values avalialble that make the sum _exactly_ equal to our confidence level.  The easiest
+way to find this is to use `qbinom` (see the Stockholm University post for other ways)
+
+```{r quantileci}
+qci <- function(p, n, data=NULL, alpha=0.05) {
+    ## We have to add 1 to k1 and k2 because x1r[1] holds k==0, x1r[2] holds k==1, etc.
+    k1 <- floor(qbinom(alpha/2, n-1, p)) + 1
+    k2 <- ceiling(qbinom(1-alpha/2, n-1, p)) + 1
+    qvals <- c(k1, k2)       # These are the order stats that give the confidence intervals
+    if(is.null(data)) {
+        xvals <- c(0,0)
+    }
+    else {
+        xvals <- signif(data[c(k1,k2)],3)      # These are the actual x values in the confidence intervals
+    }
+    list(qvals=qvals, xvals=xvals, ciwidth=xvals[2]-xvals[1])
+}
+qci(0.1, 50, x1r)
+```
+The point estimate of the 10th percentile was `r signif(quantile(x1, 0.1),3)`, so this is a moderately large uncertainty.  Incidentally, if you 
+plug these confidence boundaries into the ECDF function for `x1` you get `r signif(ecdf(x1)(x1r[qci(0.1, 50, x1r)$qvals]),3)`, which is very close
+to our estimate of the confidence intervals for $F_n(x)$ at the point where it crossed the 10th percentile, so this all seems consistent.
+
+This one is another case where it isn't so easy to figure out what the effect of an increasing data set size might be, and I couldn't find
+a handy approximation that would allow us to figure this out, so I had to fall back on some simulation.  First note that the width of the 
+confidence interval is determined by both the shape of the binomial distribution (which depends on $n$ and $q$) and the shape of the ECDF
+(a shallower CDF produces a larger uncertainty).  The former helps us in the tails and hurts us in the core; for the latter it's the opposite.
+
+We'll try looking at a few confidence intervals for the 25th and 50th percentiles to see how the choice of quantile affects our uncertainty,
+and then we'll try looking at larger sample sizes.
+```{r q25q50}
+cat('p=0.25\n')
+qci(0.25, 50, x1r)
+cat('p=0.5\n')
+qci(0.5, 50, x1r)
+```
+
+The trend here is obscured a bit by discreteness effects.  Here is the whole curve from 0.01 to 0.5
+```{r ciw}
+ciwidth <- function(x) {
+    alpha <- 0.05
+    k1 <- floor(qbinom(alpha/2, n-1, x))+1
+    k2 <- ceiling(qbinom(1-alpha/2, n-1, x))+1
+    x1r[k2]-x1r[k1]
+}
+curve(ciwidth, from=0.01, to=0.5)
+```
+It's hard to tell if there is any real trend here.  Probably the specifics of the ECDF are the driving force
+here.
+
+We can do a similar experiment keeping the quantile fixed at 0.1 and varying the number of data points.
+```{r newsimdata}
+x100 <- sort(rnorm(100))
+x150 <- sort(rnorm(150))  # Longest data set we think we can get
+x400 <- sort(rnorm(400))
+```
+
+```{r cin}
+cat('n=100\n')
+qci(0.1, 100, x100)
+cat('n=150\n')
+qci(0.1, 150, x150)
+cat('n=400\n')
+qci(0.1, 400, x400)
+```
+It looks plausible that this might be decreasing as $1/\sqrt{n}$, but it's hard to say for sure.
+```{r rootn}
+ciwn <- function(n) {
+    simd <- sort(rnorm(n))
+    qci(0.1, n, simd)$ciwidth
+}
+x <- seq(20, 1000, 10)
+y <- sapply(x, ciwn)
+plot(x,y, type='l', xlab = 'n', ylab='CI width')
+```
+I think the main thing we can say here is that the improvement assuredly no 
+_better_ than $1/\sqrt{n}$.
+
+
+## What does this mean for our threshold procedure?
+
+Upon further review, here's what I think we really care about in our threshold.  If we select a threshold by
+picking, say, the 10th percentile, then if we look at another dataset with the same distribution (e.g., another
+run over the historical period, if such a thing were available), we would want about 10% of the values to fall
+below the threshold.  We'd be ok with it if the actual number were something like 8-12%, but 0% or 20% would be
+wholly unacceptable.  Note that we _don't_ actually care what the interval for the corresponding $x$ values is.  
+Therefore, we need a sample large enough that the expected error _expressed as a difference in quantile_ is less
+than, say, 0.02.  
+
+I'm half-convinced that this is equivalent to saying that the CI on $F_n(x)$ should be less than our desired 
+precision, but let's grind it out with our quantile formula and see if that method agrees.
+```{r quantbnd}
+quantbnd <- function(n) {
+    qv <- qci(0.1, n)$qvals / n  # Given the k values from the calc, k/n is the quantile estimate
+    0.5*(qv[2]-qv[1])
+}
+x <- seq(25,1000,25)
+y <- sapply(x, quantbnd)
+plot(x,y, type='l', xlab='n', ylab='Quantile CI width', log='xy')
+```
+That looks like $1/\sqrt{n}$ behavior to me.  What's more, recall the normal approximation to the
+pointwise confidence interval for $F_n$:
+$$
+\varepsilon = z\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}.
+$$
+What does this predict for $n$ if we want $\varepsilon = 0.02$?  For a 95% confidence interval, 
+$z \approx 2$, and we can solve this equation for $n$.
+$$
+n = 10^4 \hat{p}(1-\hat{p})
+$$
+For $\hat{p} = 0.1$, this comes out to `r 1e4*0.1*0.9`, which is right about where the curve above
+crosses $y = 0.02$.  
+
+## Conclusion
+
+So, we've come the long way around the barn, but I think we have learned a lot on the trip.  We now know
+how to do both simultaneous and pointwise confidence intervals for CDFs.  Perhaps surprisingly, when expressed
+as a function of $p$, these don't depend on the details of the CDF, though if you want to get them in 
+terms of the input $x$ values, then obviously they do.  We also learned how to get confidence intervals for 
+quantiles in terms of the $x$ values, so we can say, for example, that the 10th percentile of the `x1` distribution
+is `r signif(quantile(x1,0.1),3)` with a 95% confidence interval of (`r signif(qci(0.1, 50, x1r)$xvals, 3)`).
+
+To our original purpose, what we really want to know is, when we estimate a quantile from our data, how far off,
+in terms of quantiles, might it be?  That is, might our estimate of the 10th percentile _actually_ be the 5th, or
+the 20th percentile in the real distribution?  That sounds like a question about confidence intervals on the 
+quantile estimate, but it's really not; it's a question about confidence intervals on the CDF, but with its inputs
+expressed as quantile values rather than $x$ values.  As we saw above, when expressed that way the dependence on 
+the details of the CDF all cancels out, and we can derive a completely general result.  For desired accuracy (95% confidence)
+$\varepsilon$ in quantile $p$, the number of observations you need is
+$$
+n = \left(\frac{\varepsilon}{2}\right)^{-2} p (1-p)
+$$
+With $\varepsilon = 0.02$ and $p = 0.1$, that works out to about 900.  Our current dataset has about 50 observations, and
+_if_ we could track down bias corrected ESM runs going back to 1860, that would boost us up to $\varepsilon \approx 0.05$, 
+which might be just barely acceptable.  On the other hand, 20 fldgen runs trained on the historical data set would almost
+certainly do the trick.
+
