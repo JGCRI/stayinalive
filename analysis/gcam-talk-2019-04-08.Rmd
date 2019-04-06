@@ -1,0 +1,94 @@
+---
+title: "Drought analysis for gcam talk"
+output: html_notebook
+---
+
+
+```{r setup}
+library(survival)        # standard R package for survival analysis
+library(stayinalive)     # functions we developed for processing time series.
+library(ggplot2)
+library(ggthemes)
+```
+
+```{r params}
+beta <- 0.25
+year <- 2001:2100
+```
+
+Generate 100 years of data for 10 basins.  Temperature increases over the course of the century
+according to Hector's RCP8.5 pathway.  Droughts are between 1 and 2 years long in this
+simulation.  The $\beta$ value of `r beta` means that each degree of global temperature change should
+produce about a `r round(100*(exp(beta)-1))`% increase in drought risk relative to the baseline.
+
+```{r gethectortemps}
+hcore <- hector::newcore(system.file('input', 'hector_rcp85.ini', package='hector'))
+invisible(hector::run(hcore,max(year)))
+temps <- hector::fetchvars(hcore, year, hector::GLOBAL_TEMP())
+Tgyr <- temps$value
+Tgmon <- rep(Tgyr, rep(12, length(Tgyr)))   # convert to monthly values
+```
+```{r tempplot}
+ggplot(mapping=aes(x=year, y=Tgyr)) + geom_line(color='lightgrey', size=1.25) + 
+    theme_solarized_2(light=FALSE)
+```
+
+
+```{r simdata}
+nyear <- length(Tgyr)
+nmonth <- 12*nyear
+nbasin <- 20
+
+set.seed(867-5309)
+basindata <- gents(nbasin, nmonth, Tgmon, beta=beta)
+```
+
+Plot the pattern of drought in the basin data.
+```{r droughtplot}
+bd <- t(basindata)
+colnames(bd) <- seq(1,nbasin)
+bddf <- as.data.frame(bd)
+bddf$month <- seq(1,nrow(bddf))
+bddf2 <- tidyr::gather(bddf, key='basin', value='value', -month, convert=TRUE)
+bddf2$drought <- bddf2$basin * bddf2$value
+ggplot(data=bddf2, aes(x=month, y=drought)) + geom_point(color='lightgrey') + ylim(c(1,nbasin+1)) + ylab('Basin') +
+    theme_solarized_2(light=FALSE)
+```
+
+
+The code below converts the basin time series to the event data frame required by the `coxph`
+function.  Then we feed that to a simple Cox model.
+
+```{r surv}
+events <- tsmat2event(basindata, Tgyr, 1)
+events$basinid <- as.factor(events$basinid)
+cph <- coxph(Surv(tstart, tstop, drought)~Tg, data=events)
+summary(cph)
+```
+
+How much data do we need?  Can we detect the change with fewer basins?
+```{r smalldata}
+basindata10 <- basindata[1:10, ]
+events10 <- tsmat2event(basindata10, Tgyr, 1)
+events10$basinid <- as.factor(events10$basinid)
+cph10 <- coxph(Surv(tstart, tstop, drought)~Tg, data=events10)
+summary(cph10)
+```
+Marginal.  The fit is just a tiny bit above one SE away from the right answer.
+However, the statistics are not good.  The confidence intervals include no effect.
+
+```{r survcomp}
+betafit <- cph$coefficients['Tg']
+bh <- basehaz(cph)
+h0 <- bh$hazard
+calcsurv <- function(tg) {
+    psi <- exp(tg*betafit)
+    s <- exp(-psi*h0)
+    data.frame(temperature=tg, time=bh$time, S=s)
+}
+pltdata <- dplyr::bind_rows(lapply(c(0,1,2,5), calcsurv))
+pltdata$temperature <- paste(pltdata$temperature, 'deg C')
+ggplot(data=pltdata, aes(x=time, y=S, color=temperature)) + geom_line(size=1.1) + 
+    theme_minimal() + scale_color_manual(values=c('black','blue','green','red'))
+```
+
