@@ -98,6 +98,11 @@ ts2event <- function(ts, Tg, basinid, scenarioid, nbasin=300, neventmax=100)
     ## this time series is the waiting times
     waitidx <- which(rr$values == 0)
     nwait <- length(waitidx)
+    if(nwait == 0) {
+        ## Drought for the entire run.  It's rare, but with 67420 grid cells and a lot
+        ## of scenarios it happens occasionally.
+        return(NULL)
+    }
     ## Each wait ended with a drought, except possibly the last, which could
     ## have ended with the end of the time series
     waitstatus <- rep(1, nwait)
