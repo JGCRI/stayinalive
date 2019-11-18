@@ -2,7 +2,7 @@ context('applying duration threshold')
 
 ## Function to generate test vectors.  The index tells us which case
 ## to generate.  Update ncase if we add cases.
-ncase <- 5
+ncase <- 6
 vecs <- function(i)
 {
     ## All of the comments on the cases assume thresh==6
@@ -11,6 +11,7 @@ vecs <- function(i)
         c(seq(1,6), 0, seq(1,5), 0, seq(1,7)),         # keeper at the beginning and end
         c(seq(1,5), 0, seq(1,8), 0, seq(1,5)),         # drop at beginning and end
         seq(1,20),                                     # one long sequence
+        c(1, rep(0, 19)),                              # single event in the first timestep
         rep(0, 20)                                     # no events
     )
 }
@@ -23,6 +24,7 @@ answers <- function(i)
            c(seq(1,6), 0, rep(0,5), 0, seq(1,7)),
            c(rep(0,5), 0, seq(1,8), 0, rep(0,5)),
            seq(1,20),
+           rep(0, 20),
            rep(0,20)
     )
 }

@@ -27,7 +27,7 @@ NumericVector apply_duration_thresh(NumericVector tseries, double thresh)
     // Iterate backwards; the final value tells us the total length of the drought, so
     // we know immediately if we need to drop it.
     int t = len-1;
-    while(t > 0) {
+    while(t >= 0) {
         int drlen = tseries[t];
         if(drlen > 0 && drlen < thresh) {
             // Drought is too short.  Eliminate
