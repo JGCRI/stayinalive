@@ -29,7 +29,7 @@ Tgyr <- temps$value
 Tgmon <- rep(Tgyr, rep(12, length(Tgyr)))   # convert to monthly values
 ```
 ```{r tempplot}
-ggplot(mapping=aes(x=year, y=Tgyr)) + geom_line(color='lightgrey', size=1.25) + 
+ggplot(mapping=aes(x=year, y=Tgyr)) + geom_line(color='lightgrey', size=1.25) + ylab('Global temperature') +
     theme_solarized_2(light=FALSE)
 ```
 
@@ -51,7 +51,8 @@ bddf <- as.data.frame(bd)
 bddf$month <- seq(1,nrow(bddf))
 bddf2 <- tidyr::gather(bddf, key='basin', value='value', -month, convert=TRUE)
 bddf2$drought <- bddf2$basin * bddf2$value
-ggplot(data=bddf2, aes(x=month, y=drought)) + geom_point(color='lightgrey') + ylim(c(1,nbasin+1)) + ylab('Basin') +
+bddf2$year <- (bddf2$month-1) / 12 + 2001
+ggplot(data=bddf2, aes(x=year, y=drought)) + geom_point(color='lightgrey') + ylim(c(1,nbasin+1)) + ylab('Ensemble run') +
     theme_solarized_2(light=FALSE)
 ```
 
@@ -79,7 +80,7 @@ However, the statistics are not good.  The confidence intervals include no effec
 
 ```{r survcomp}
 betafit <- cph$coefficients['Tg']
-bh <- basehaz(cph)
+bh <- basehaz(cph, centered=FALSE)
 h0 <- bh$hazard
 calcsurv <- function(tg) {
     psi <- exp(tg*betafit)
@@ -88,7 +89,39 @@ calcsurv <- function(tg) {
 }
 pltdata <- dplyr::bind_rows(lapply(c(0,1,2,5), calcsurv))
 pltdata$temperature <- paste(pltdata$temperature, 'deg C')
-ggplot(data=pltdata, aes(x=time, y=S, color=temperature)) + geom_line(size=1.1) + 
+pltdata$timeyr <- pltdata$time / 12
+ggplot(data=pltdata, aes(x=timeyr, y=S, color=temperature)) + geom_line(size=1.1) + 
     theme_minimal() + scale_color_manual(values=c('black','blue','green','red'))
 ```
 
+Do the analysis of temperatures in the rcp8.5 scenario for the weird science section
+
+```{r weirdsci}
+ncfiles <- list.files('~/wrk/spva-paper1-devel/data', 'rcp85', full.names = TRUE)
+tempdata <- get_ncdf_pixel(ncfiles, varnames=list(latvar='lat_2', lonvar='lon_2'))
+tempdata <- reformat_data(tempdata)
+dplyr::count(tempdata, tgbin)
+ggplot(data=tempdata, aes(x=tgbin, y=Temperature)) + geom_boxplot() + 
+    theme_minimal() + xlab('Global temperature') + ylab('Grid temperature')
+```
+
+Try fitting a Cox PH model using the grid temperature as the "time" variable and 
+global temperature as the covariate.  Because each grid temperature is associated
+with a single global temperature, the covariate does not have to be regarded as
+"time" varying.
+
+```{r cphweird}
+cphweird <- coxph(Surv(Temperature, cens)~Tg, data=tempdata)
+summary(cphweird)
+betaweird <- cphweird$coefficients['Tg']
+bhweird <- basehaz(cphweird, centered=FALSE)
+h0weird <- bhweird$hazard
+weirdcdf <- function(tg) {
+    psi <- exp(tg*betaweird)
+    s <- exp(-psi*h0weird)
+    data.frame(Tg=factor(tg), Temperature=bhweird$time, P=1-s)
+}
+weirdpltdata <- dplyr::bind_rows(lapply(c(0,1,2,4), weirdcdf))
+ggplot(data=weirdpltdata, aes(x=Temperature, y=P, color=Tg)) + geom_line(size=1.1) + 
+    theme_minimal() + scale_color_manual(values=c('black','blue','green','red'))
+```

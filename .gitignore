@@ -5,6 +5,11 @@
 rsconnect
 
 
+## Rendered notebooks
+*.nb.html
+
+
+
 ## Emacs files
 *~
 \#*
