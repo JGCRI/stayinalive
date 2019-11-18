@@ -3,6 +3,7 @@
 export(apply_duration_thresh)
 export(gents)
 export(get_ncdf_pixel)
+export(readNPY)
 export(reformat_data)
 export(ts2event)
 export(tsmat2event)

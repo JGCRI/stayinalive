@@ -12,7 +12,9 @@ Imports:
     assertthat (>= 0.2.0),
     foreach (>= 1.4.3),
     survival (>= 2.43),
+    reticulate (>= 1.13),
     Rcpp
-Suggests: testthat
+Suggests: 
+    testthat,
 LinkingTo: 
     Rcpp
