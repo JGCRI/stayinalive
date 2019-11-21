@@ -9,7 +9,7 @@ from math import ceil
 from fastparquet import ParquetFile
 
 def get_pqfiles(inputdir, index, nproc):
-    pqfiles = glob.glob(os.path.join(inputdir, '*.parquet'))
+    pqfiles = glob.glob(os.path.join(inputdir, 'drought_duration*.parquet'))
     pqfiles.sort()
     nfiles = len(pqfiles)
     nbatch = int(ceil(nfiles/nproc))

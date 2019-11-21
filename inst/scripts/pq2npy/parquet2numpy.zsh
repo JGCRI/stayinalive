@@ -18,7 +18,7 @@ pyscript=`Rscript -e 'cat(system.file("scripts/pq2npy/parquet2numpy.py", package
 
 ##nproc=$SLURM_ARRAY_TASK_COUNT
 ## PIC uses a super old version of slurm that doesn't support array_task_count
-nproc=160
+nproc=4
 indx=$SLURM_ARRAY_TASK_ID
 
 outdir=/pic/scratch/rpl/drought-duration-output
