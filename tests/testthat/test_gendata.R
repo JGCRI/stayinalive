@@ -20,7 +20,12 @@ test_that('No drought produces a single censored event', {
     ev <- ts2event(ts1, Tgyr, 1, 1)
     expected <- data.frame(id=1, basinid=1, tstart=seq(0, (nyear-1)*12, 12),
                            tstop=seq(12, nyear*12, 12), drought=0, Tg=Tgyr)
+    ## use expect_equivalent since the survival package adds a bunch of attributes that
+    ## are a black box to us.
     expect_equivalent(ev, expected)
+    ## expect_equivalent doesn't check column names, since they are technically attributes,
+    ## so check them explicitly.
+    expect_setequal(names(ev), names(expected))
 })
 
 
@@ -33,6 +38,8 @@ test_that('One drought produces the expected result', {
                             drought=c(1, rep(0, nyear)),
                             Tg=c(Tgyr[1], Tgyr))
     expect_equivalent(ev2, expected2)
+    expect_setequal(names(ev2), names(expected2))
+
 
     ev3 <- ts2event(ts3, Tgyr, 3, 1)
     expected3 <- data.frame(id=c(201, 201, rep(202, nyear-2)),
@@ -42,6 +49,8 @@ test_that('One drought produces the expected result', {
                             drought=c(0,1, rep(0, nyear-2)),
                             Tg=c(Tgyr[1:2], Tgyr[-c(1,2)]))
     expect_equivalent(ev3, expected3)
+    expect_setequal(names(ev3), names(expected3))
+
 
     ev4 <- ts2event(ts4, Tgyr, 4, 1)
     expected4 <- data.frame(id=c(rep(301,3), rep(302, 5)),
@@ -51,6 +60,7 @@ test_that('One drought produces the expected result', {
                             drought=c(0,0,1, rep(0,5)),
                             Tg=c(Tgyr[1:3], Tgyr[-(1:5)]))
     expect_equivalent(ev4, expected4)
+    expect_setequal(names(ev4), names(expected4))
 })
 
 
@@ -63,6 +73,7 @@ test_that('Multiple droughts produce the expected result', {
                            drought=c(0,1,1, rep(0,5)),
                            Tg=c(Tgyr[1:3], Tgyr[-(1:5)]))
     expect_equivalent(ev, expected)
+    expect_setequal(names(ev), names(expected))
 
     ev2 <- ts2event(ts6, Tgyr, 6, 1)
     expected2 <- data.frame(id=rep(c(501, 502, 503), c(2,4,5)),
@@ -72,6 +83,7 @@ test_that('Multiple droughts produce the expected result', {
                             drought=c(0,1,0,0,0,1, rep(0,5)),
                             Tg=c(Tgyr[1:2], Tgyr[3:6], Tgyr[-(1:5)]))
     expect_equivalent(ev2, expected2)
+    expect_setequal(names(ev2), names(expected2))
 })
 
 
@@ -89,4 +101,5 @@ test_that("Matrix of time series produces the same result as individual", {
     ev_expected <- rbind(ev1,ev2,ev3,ev4,ev5,ev6)
 
     expect_equivalent(allev, ev_expected)
+    expect_setequal(names(allev), names(ev_expected))
 })
