@@ -1,9 +1,11 @@
 #### Functions for generating synthetic data sets for testing survival analysis
 
-#' Generate a matrix of drought time series for a selection of basins.
+#' Generate a matrix of drought time series for a selection of groups.
 #'
+#' A "group" is a geographical identifier used to tag observations from the same location,
+#' whether it's a basin, a grid cell, or something else.
 #'
-#' @param nbasin Number of basins
+#' @param ngroup Number of groups
 #' @param nmonth Number of months
 #' @param Tg Temperature
 #' @param expalpha Baseline probability per month of a drought beginning
@@ -12,29 +14,29 @@
 #' @param L1 Maximum drought length
 #' @importFrom assertthat assert_that
 #' @export
-gents <- function(nbasin, nmonth, Tg = rep(0, nmonth), expalpha = 1.0/300.0, beta = 0.1,
+gents <- function(ngroup, nmonth, Tg = rep(0, nmonth), expalpha = 1.0/300.0, beta = 0.1,
                           L0 = 12, L1 = 24)
 {
     assert_that(length(Tg) == nmonth)
 
     alpha <- log(expalpha)
 
-    output <- matrix(nrow=nbasin, ncol=nmonth)
-    status <- rep(0, nbasin)            # Months left in the current drought
+    output <- matrix(nrow=ngroup, ncol=nmonth)
+    status <- rep(0, ngroup)            # Months left in the current drought
     prob <- exp(alpha + beta * Tg)      # Drought probability by time
 
     for(m in 1:nmonth) {
         ## Decrement the lengths of the droughts in progress
         status <- ifelse(status>0, status-1, 0)
-        r <- runif(nbasin)              # roll for drought
-        d <- runif(nbasin, L0, L1)      # roll for length
+        r <- runif(ngroup)              # roll for drought
+        d <- runif(ngroup, L0, L1)      # roll for length
 
-        ## In basins where a drought is not in progress, start a new one of the
+        ## In groups where a drought is not in progress, start a new one of the
         ## indicated length
         status <- ifelse(status == 0 & r < prob[m], d, status)
 
         output[ , m] <- ifelse(status > 0, 1, 0) # Record the drought status in
-                                        # each basin
+                                        # each group
     }
 
     output
@@ -42,7 +44,7 @@ gents <- function(nbasin, nmonth, Tg = rep(0, nmonth), expalpha = 1.0/300.0, bet
 
 
 
-#' Convert a single-basin drought time series into a data frame of event data
+#' Convert a single-group drought time series into a data frame of event data
 #'
 #' The vector of status values will be converted into a data frame that
 #' describes the waiting times for drought events and the changes in their
@@ -53,7 +55,7 @@ gents <- function(nbasin, nmonth, Tg = rep(0, nmonth), expalpha = 1.0/300.0, bet
 #' An event data frame consists of the following columns:
 #' \describe{
 #'   \item{id}{A unique serial number for each drought event.}
-#'   \item{basinid}{A unique id for each basin.  This id will be used as a
+#'   \item{groupid}{A unique id for each group.  This id will be used as a
 #' grouping variable in frailty models.}
 #'   \item{tstart}{Start time for a recording period, in months since the last event (or
 #' start of the scenario).  Covariate changes take effect at the start of a
@@ -65,7 +67,7 @@ gents <- function(nbasin, nmonth, Tg = rep(0, nmonth), expalpha = 1.0/300.0, bet
 #' }
 #'
 #' This processing prepares the data in a time series of drought/no drought
-#' indicators to be used in a survival analysis.  Each basin can have multiple
+#' indicators to be used in a survival analysis.  Each group can have multiple
 #' events, and these will be treated as separate subjects.  The reason we do
 #' this is that it's the easiest way to account for the fact that droughts have
 #' duration, and while a drought is in progress you can't have another drought.
@@ -73,18 +75,19 @@ gents <- function(nbasin, nmonth, Tg = rep(0, nmonth), expalpha = 1.0/300.0, bet
 #'
 #' @param ts Vector of monthly drought status.  0= no drought; >0= drought
 #' @param Tg Vector of \emph{annual} global mean temperature.
-#' @param basinid Numerical identifier for the basin.  This \emph{must} be
-#' unique for each basin.
+#' @param groupid Numerical identifier for the group.  A "group" is a geographical location,
+#' whether it's a basin, a grid cell, or something else. This \emph{must} be
+#' unique for each group.
 #' @param scenarioid Numerical identifier for the scenario.  This \emph{must} be
 #' unique across scenarios.
-#' @param nbasin Total number of basins.  This is used in constructing unique id
-#' values from the scenarioid and basinid.
-#' @param neventmax Maximum number of events for a single basin and scenario.
+#' @param ngroup Total number of groups.  This is used in constructing unique id
+#' values from the scenarioid and groupid.
+#' @param neventmax Maximum number of events for a single group and scenario.
 #' This is also used to construct UIDs.
 #' @return Data frame of event data.
 #' @importFrom assertthat assert_that
 #' @export
-ts2event <- function(ts, Tg, basinid, scenarioid, nbasin=300, neventmax=100)
+ts2event <- function(ts, Tg, groupid, scenarioid, ngroup=300, neventmax=100)
 {
     ## Start months for each year
     yearstarts <- (seq_along(Tg)-1)*12 + 1
@@ -130,7 +133,7 @@ ts2event <- function(ts, Tg, basinid, scenarioid, nbasin=300, neventmax=100)
     wtimes <-
         lapply(1:nevent,
                function(eventid) {
-                   uid <- ((scenarioid-1)*nbasin + (basinid-1)) * neventmax + eventid
+                   uid <- ((scenarioid-1)*ngroup + (groupid-1)) * neventmax + eventid
 
                    startmonth <- waitstrt[eventid]       # start of the waiting period
                    endmonth <- waitend[eventid]
@@ -139,7 +142,7 @@ ts2event <- function(ts, Tg, basinid, scenarioid, nbasin=300, neventmax=100)
 
                    ## Gather these into a data frame to be used by tmerge.
                    drought_data <-
-                       data.frame(id=uid, basinid=basinid, dtime=wtime, status=status)
+                       data.frame(id=uid, groupid=groupid, dtime=wtime, status=status)
                    event_data <- survival::tmerge(drought_data[1:2],
                                                   drought_data, id=id,
                                                   drought=event(dtime, status))
@@ -157,10 +160,10 @@ ts2event <- function(ts, Tg, basinid, scenarioid, nbasin=300, neventmax=100)
                    if(length(yearidx) > 0) {
                        tstart <- yearstarts[yearidx] - startmonth
                        temp <- Tg[yearidx]                      # Global mean temperature for each year
-                       gmtemp <- data.frame(id=uid, basinid=basinid, time=tstart, temp=temp)
+                       gmtemp <- data.frame(id=uid, groupid=groupid, time=tstart, temp=temp)
                    }
                    else {
-                       gmtemp <- data.frame(id=uid, basinid=basinid, time=0, temp=starttemp)
+                       gmtemp <- data.frame(id=uid, groupid=groupid, time=0, temp=starttemp)
                    }
                    survival::tmerge(event_data, gmtemp, id=id, Tg=tdc(time, temp), options=list(tdcstart=starttemp))
                })
@@ -169,15 +172,16 @@ ts2event <- function(ts, Tg, basinid, scenarioid, nbasin=300, neventmax=100)
 }
 
 
-#' @describeIn ts2event Convert a matrix of basin time series to an event data frame
+#' @describeIn ts2event Convert a matrix of group time series to an event data frame
 #'
-#' @param tsmat A matrix of basin time series. Each row of the matrix should be
-#' a time series for one basin.
+#' @param tsmat A matrix of group time series. Each row of the matrix should be
+#' a time series for one group.  A "group" is a geographical location,
+#' whether it's a basin, a grid cell, or something else.
 #' @importFrom foreach foreach %do% %dopar%
 #' @export
-tsmat2event <- function(tsmat, Tg, scenarioid, nbasin=300, neventmax=100)
+tsmat2event <- function(tsmat, Tg, scenarioid, ngroup=300, neventmax=100)
 {
-    foreach(basinid=seq(1, nrow(tsmat)), .combine=rbind) %dopar% {
-        ts2event(tsmat[basinid,], Tg, basinid, scenarioid, nbasin, neventmax)
+    foreach(groupid=seq(1, nrow(tsmat)), .combine=rbind) %dopar% {
+        ts2event(tsmat[groupid,], Tg, groupid, scenarioid, ngroup, neventmax)
     }
 }

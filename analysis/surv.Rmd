@@ -34,7 +34,7 @@ function.  Then we feed that to a simple Cox model.
 ```{r surv}
 
 events <- tsmat2event(basindata, Tgyr, 1)
-events$basinid <- as.factor(events$basinid)
+events$basinid <- as.factor(events$groupid)
 cph <- coxph(Surv(tstart, tstop, drought)~Tg, data=events)
 summary(cph)
 ```

@@ -3,31 +3,33 @@
 \name{ts2event}
 \alias{ts2event}
 \alias{tsmat2event}
-\title{Convert a single-basin drought time series into a data frame of event data}
+\title{Convert a single-group drought time series into a data frame of event data}
 \usage{
-ts2event(ts, Tg, basinid, scenarioid, nbasin = 300, neventmax = 100)
+ts2event(ts, Tg, groupid, scenarioid, ngroup = 300, neventmax = 100)
 
-tsmat2event(tsmat, Tg, scenarioid, nbasin = 300, neventmax = 100)
+tsmat2event(tsmat, Tg, scenarioid, ngroup = 300, neventmax = 100)
 }
 \arguments{
 \item{ts}{Vector of monthly drought status.  0= no drought; >0= drought}
 
 \item{Tg}{Vector of \emph{annual} global mean temperature.}
 
-\item{basinid}{Numerical identifier for the basin.  This \emph{must} be
-unique for each basin.}
+\item{groupid}{Numerical identifier for the group.  A "group" is a geographical location,
+whether it's a basin, a grid cell, or something else. This \emph{must} be
+unique for each group.}
 
 \item{scenarioid}{Numerical identifier for the scenario.  This \emph{must} be
 unique across scenarios.}
 
-\item{nbasin}{Total number of basins.  This is used in constructing unique id
-values from the scenarioid and basinid.}
+\item{ngroup}{Total number of groups.  This is used in constructing unique id
+values from the scenarioid and groupid.}
 
-\item{neventmax}{Maximum number of events for a single basin and scenario.
+\item{neventmax}{Maximum number of events for a single group and scenario.
 This is also used to construct UIDs.}
 
-\item{tsmat}{A matrix of basin time series. Each row of the matrix should be
-a time series for one basin.}
+\item{tsmat}{A matrix of group time series. Each row of the matrix should be
+a time series for one group.  A "group" is a geographical location,
+whether it's a basin, a grid cell, or something else.}
 }
 \value{
 Data frame of event data.
@@ -43,7 +45,7 @@ boundaries.
 An event data frame consists of the following columns:
 \describe{
   \item{id}{A unique serial number for each drought event.}
-  \item{basinid}{A unique id for each basin.  This id will be used as a
+  \item{groupid}{A unique id for each group.  This id will be used as a
 grouping variable in frailty models.}
   \item{tstart}{Start time for a recording period, in months since the last event (or
 start of the scenario).  Covariate changes take effect at the start of a
@@ -55,7 +57,7 @@ event.  Events during a period are deemed to occur at the end of the period.}
 }
 
 This processing prepares the data in a time series of drought/no drought
-indicators to be used in a survival analysis.  Each basin can have multiple
+indicators to be used in a survival analysis.  Each group can have multiple
 events, and these will be treated as separate subjects.  The reason we do
 this is that it's the easiest way to account for the fact that droughts have
 duration, and while a drought is in progress you can't have another drought.
@@ -63,6 +65,6 @@ This turns out to be rather difficult to do in a counting formulation.
 }
 \section{Functions}{
 \itemize{
-\item \code{tsmat2event}: Convert a matrix of basin time series to an event data frame
+\item \code{tsmat2event}: Convert a matrix of group time series to an event data frame
 }}
 

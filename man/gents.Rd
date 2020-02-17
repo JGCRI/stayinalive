@@ -2,13 +2,13 @@
 % Please edit documentation in R/gendata.R
 \name{gents}
 \alias{gents}
-\title{Generate a matrix of drought time series for a selection of basins.}
+\title{Generate a matrix of drought time series for a selection of groups.}
 \usage{
-gents(nbasin, nmonth, Tg = rep(0, nmonth), expalpha = 1/300,
+gents(ngroup, nmonth, Tg = rep(0, nmonth), expalpha = 1/300,
   beta = 0.1, L0 = 12, L1 = 24)
 }
 \arguments{
-\item{nbasin}{Number of basins}
+\item{ngroup}{Number of groups}
 
 \item{nmonth}{Number of months}
 
@@ -23,5 +23,6 @@ gents(nbasin, nmonth, Tg = rep(0, nmonth), expalpha = 1/300,
 \item{L1}{Maximum drought length}
 }
 \description{
-Generate a matrix of drought time series for a selection of basins.
+A "group" is a geographical identifier used to tag observations from the same location,
+whether it's a basin, a grid cell, or something else.
 }

@@ -18,7 +18,7 @@ ts6 <- ts5; ts6[36:62] <- 0; ts6[25:27] <- 1; ts6[65:70] <- 1
 
 test_that('No drought produces a single censored event', {
     ev <- ts2event(ts1, Tgyr, 1, 1)
-    expected <- data.frame(id=1, basinid=1, tstart=seq(0, (nyear-1)*12, 12),
+    expected <- data.frame(id=1, groupid=1, tstart=seq(0, (nyear-1)*12, 12),
                            tstop=seq(12, nyear*12, 12), drought=0, Tg=Tgyr)
     ## use expect_equivalent since the survival package adds a bunch of attributes that
     ## are a black box to us.
@@ -32,7 +32,7 @@ test_that('No drought produces a single censored event', {
 test_that('One drought produces the expected result', {
     ev2 <- ts2event(ts2, Tgyr, 2, 1)
     expected2 <- data.frame(id=c(101, rep(102, nyear)),
-                            basinid=2,
+                            groupid=2,
                             tstart=c(0, 0, seq(2, 98, 12)),
                             tstop=c(4, 2, seq(14, 110, 12)),
                             drought=c(1, rep(0, nyear)),
@@ -43,7 +43,7 @@ test_that('One drought produces the expected result', {
 
     ev3 <- ts2event(ts3, Tgyr, 3, 1)
     expected3 <- data.frame(id=c(201, 201, rep(202, nyear-2)),
-                            basinid=3,
+                            groupid=3,
                             tstart=c(0,12, seq(0, 84, 12)),
                             tstop=c(12,14, seq(12, 96, 12)),
                             drought=c(0,1, rep(0, nyear-2)),
@@ -54,7 +54,7 @@ test_that('One drought produces the expected result', {
 
     ev4 <- ts2event(ts4, Tgyr, 4, 1)
     expected4 <- data.frame(id=c(rep(301,3), rep(302, 5)),
-                            basinid=4,
+                            groupid=4,
                             tstart=c(0,12,24, 0,10,22,34,46),
                             tstop=c(12,24,35, seq(10,58,12)),
                             drought=c(0,0,1, rep(0,5)),
@@ -67,7 +67,7 @@ test_that('One drought produces the expected result', {
 test_that('Multiple droughts produce the expected result', {
     ev <- ts2event(ts5, Tgyr, 5, 1)
     expected <- data.frame(id=c(401,401,402, rep(403, 5)),
-                           basinid=5,
+                           groupid=5,
                            tstart=c(0,12,0, 0,10,22,34,46),
                            tstop=c(12,14,11, seq(10,58,12)),
                            drought=c(0,1,1, rep(0,5)),
@@ -77,7 +77,7 @@ test_that('Multiple droughts produce the expected result', {
 
     ev2 <- ts2event(ts6, Tgyr, 6, 1)
     expected2 <- data.frame(id=rep(c(501, 502, 503), c(2,4,5)),
-                            basinid=6,
+                            groupid=6,
                             tstart=c(0,12, 0,9,21,33, 0,2,14,26,38),
                             tstop=c(12,14, 9,21,33,37, seq(2,50,12)),
                             drought=c(0,1,0,0,0,1, rep(0,5)),
