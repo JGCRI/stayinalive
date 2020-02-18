@@ -177,11 +177,23 @@ ts2event <- function(ts, Tg, groupid, scenarioid, ngroup=300, neventmax=100)
 #' @param tsmat A matrix of group time series. Each row of the matrix should be
 #' a time series for one group.  A "group" is a geographical location,
 #' whether it's a basin, a grid cell, or something else.
+#' @param combine If \code{TRUE}, combine the event tables from the various groups into a single
+#' data fame.  Otherwise return a list of data frames, one for each group.
 #' @importFrom foreach foreach %do% %dopar%
 #' @export
-tsmat2event <- function(tsmat, Tg, scenarioid, ngroup=300, neventmax=100)
+tsmat2event <- function(tsmat, Tg, scenarioid, ngroup=300, neventmax=100, combine=TRUE)
 {
-    foreach(groupid=seq(1, nrow(tsmat)), .combine=rbind) %dopar% {
-        ts2event(tsmat[groupid,], Tg, groupid, scenarioid, ngroup, neventmax)
+    if(combine) {
+        foreach(groupid=seq(1, nrow(tsmat)), .combine=rbind) %dopar% {
+            ts2event(tsmat[groupid,], Tg, groupid, scenarioid, ngroup, neventmax)
+        }
+    }
+    else {
+        ## These two branches are the same except for the .combine argument to foreach.
+        ## Kind of dumb that there is no way (that I can find) to specify explicitly that
+        ## we want the defaultbehavior.
+        foreach(groupid=seq(1, nrow(tsmat))) %dopar% {
+            ts2event(tsmat[groupid,], Tg, groupid, scenarioid, ngroup, neventmax)
+        }
     }
 }

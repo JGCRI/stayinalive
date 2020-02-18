@@ -7,7 +7,8 @@
 \usage{
 ts2event(ts, Tg, groupid, scenarioid, ngroup = 300, neventmax = 100)
 
-tsmat2event(tsmat, Tg, scenarioid, ngroup = 300, neventmax = 100)
+tsmat2event(tsmat, Tg, scenarioid, ngroup = 300, neventmax = 100,
+  combine = TRUE)
 }
 \arguments{
 \item{ts}{Vector of monthly drought status.  0= no drought; >0= drought}
@@ -30,6 +31,9 @@ This is also used to construct UIDs.}
 \item{tsmat}{A matrix of group time series. Each row of the matrix should be
 a time series for one group.  A "group" is a geographical location,
 whether it's a basin, a grid cell, or something else.}
+
+\item{combine}{If \code{TRUE}, combine the event tables from the various groups into a single
+data fame.  Otherwise return a list of data frames, one for each group.}
 }
 \value{
 Data frame of event data.

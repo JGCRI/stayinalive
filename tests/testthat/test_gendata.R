@@ -103,3 +103,19 @@ test_that("Matrix of time series produces the same result as individual", {
     expect_equivalent(allev, ev_expected)
     expect_setequal(names(allev), names(ev_expected))
 })
+
+test_that("Setting combine to FALSE produces a list of correct results", {
+    allts <- matrix(c(ts1, ts2, ts3, ts4, ts5, ts6), nrow=6, byrow=TRUE)
+    evlist <- tsmat2event(allts, Tgyr, 1, combine=FALSE)
+
+    ev1 <- ts2event(ts1, Tgyr, 1, 1)
+    ev2 <- ts2event(ts2, Tgyr, 2, 1)
+    ev3 <- ts2event(ts3, Tgyr, 3, 1)
+    ev4 <- ts2event(ts4, Tgyr, 4, 1)
+    ev5 <- ts2event(ts5, Tgyr, 5, 1)
+    ev6 <- ts2event(ts6, Tgyr, 6, 1)
+
+    evlist_expected <- list(ev1, ev2, ev3, ev4, ev5, ev6)
+
+    expect_equivalent(evlist, evlist_expected)
+})
