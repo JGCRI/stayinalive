@@ -1,5 +1,11 @@
 library('stayinalive')
 library('hector')
+library('foreach')
+
+#### Ugh.  I really should have reorganized the data while they were still in
+#### matrix format, then run the event conversion on tthe matrices collected by
+#### grid cell.  If we end up running this more than once, we should make that
+#### change.  It will probably be a lot easier on the disk situation.
 
 ## Entry point for the batch scripts
 ## taskid - array task id.  Should start at 0
@@ -48,10 +54,10 @@ npy2event <- function(taskid, ntask, inputdir, outputdir, thresh=12)
         tgav <- fetchvars(hcore, years, GLOBAL_TEMP())[['value']]
 
         message('....converting to events')
-        events <- tsmat2event(grid, tgav, scenarioid, 67420, length(years))
+        events_list <- tsmat2event(grid, tgav, scenarioid, 67420, length(years), combine=FALSE)
 
         message('....separating and writing')
-        separate_and_write(events, scenarioid, outputdir)
+        write_gridcell_temporaries(events_list, scenarioid, outputdir)
         message('....done')
     }
 }
@@ -59,10 +65,9 @@ npy2event <- function(taskid, ntask, inputdir, outputdir, thresh=12)
 
 ## Separate event arrays by grid cell (called "group" in the output) and write
 ## them to the temporary files.
-separate_and_write <- function(events, scenarioid, outputdir)
+write_gridcell_temporaries <- function(events_list, scenarioid, outputdir)
 {
-    events_splt <- split(events, events$groupid)
-    foreach(ev = events_splt) %dopar% {
+    foreach(ev = events_list) %dopar% {
         cellid <- ev$groupid[1]
         batchid <- floor(cellid/100)
         outfile <- file.path(outputdir, batchid, cellid,
