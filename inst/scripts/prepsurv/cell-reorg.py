@@ -80,6 +80,16 @@ rcpname = rcpnames[r]
 
 files = glob.glob(os.path.join(indir, f'duration_{modname}_{rcpname}_*.npy'))
 
+if len(files) == 0:
+    sys.stdout.write(f'No files matching pattern: duration_{modname}_{rcpname}_*.npy\n')
+    sys.stdout.write(f'indir = {indir}')
+    raise RuntimeError()
+else:
+    sys.stdout.write('Processing files:\n')
+    for filen in files:
+        sys.stdout.write(f'\t{filen}\n')
+sys.stdout.flush()
+
 cellstrt = batchsize * b        # first cell
 cellend = batchsize * (b+1)     # last cell (not included)
 if cellend > Ngrid:             # last block isn't full.
@@ -89,6 +99,13 @@ ncell = cellend - cellstrt
 mats_by_run = [np.load(file)[cellstrt:cellend, :] for file in files]
 nrun = len(mats_by_run)
 nmth = mats_by_run[0].shape[1]
+
+## check that data was read correctly
+for mat in mats_by_run:
+    if mat.shape != (ncell, nmth):
+        sys.stdout.write(f'Invalid matrix shape.  Got:  {mat.shape}  Expected:  {(ncell, nmth)}\n')
+        sys.stdout.flush()
+        raise RuntimeError()
 
 
 ## create a list of matrices
@@ -101,9 +118,10 @@ for icell in range(ncell):
 
 ## output to file
 outfilen = os.path.join(outdir, f'drgt_matrix_{modname}_{rcpname}_batch-{b:03d}.pkl')
-print(f'\noutput file:  {outfilen}')
+sys.stdout.write(f'\noutput file:  {outfilen}\n')
+sys.stdout.flush()
 outfile = open(outfilen, "wb")
 pickle.dump(mats_by_cell, outfile)
 outfile.close()
 
-print("FIN.")
+sys.stdout.write("FIN.\n")
