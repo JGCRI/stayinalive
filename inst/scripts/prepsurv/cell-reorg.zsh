@@ -4,6 +4,7 @@
 #SBATCH -A GCAM
 #SBATCH -p shared
 #SBATCH -J cell-reorg
+#SBATCH -c 6
 
 module load R/3.4.3
 module load python/anaconda3.6
@@ -24,7 +25,7 @@ tid=$SLURM_ARRAY_TASK_ID
 echo "Task ID:  $tid"
 
 
-echo python $script $indir $outdir $tid
+echo "python $script $indir $outdir $tid"
 time python $script $indir $outdir $tid
 
 #### Could also do this if we wanted to reduce the total job count by
