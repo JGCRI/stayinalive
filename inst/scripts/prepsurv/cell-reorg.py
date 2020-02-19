@@ -14,7 +14,7 @@ of files, which will clobber our file system.
 
 Strategy:
 
-1. Group data by RCP, model, and "batch".  A batch is a block of 2000
+1. Group data by RCP, model, and "batch".  A batch is a block of 10000
 cells that will all be written into a file together.  Therefore, there
 are 34 batches.
 
@@ -25,7 +25,7 @@ Conversely:
     * b = floor(I/(Nr*Nm))
     * r = floor(I/Nm) - b*Nr
     * m = mod(I, Nm)
-Therefore, the total number of jobs is 4*4*34 = 544 (running 0-543)
+Therefore, the total number of jobs is 4*4*7 = 112 (running 0-111)
 
 
 3. Filenames for the Xanthos output data are constructed according to
@@ -59,7 +59,7 @@ import os.path
 Nr = 4                          # Number of RCP scenarios
 Nm = 4                          # Number of Earth system models
 Ngrid = 67420                   # Number of grid cells
-batchsize = 2000                # Number of grid cells in a batch
+batchsize = 10000               # Number of grid cells in a batch
 Nb = (Ngrid // batchsize) + 1   # Number of batches
 
 modnames = ["GFDL-ESM2M", "IPSL-CM5A-LR", "HadGEM2-ES", "MIROC5"]
@@ -111,7 +111,7 @@ for mat in mats_by_run:
 ## create a list of matrices
 mats_by_cell = [None] * ncell
 for icell in range(ncell):
-    cell = np.empty((nrun, nmth))
+    cell = np.empty((nrun, nmth), dtype=np.int16)
     for irun in range(nrun):
         cell[irun, :] = mats_by_run[irun][icell, :]
     mats_by_cell[icell] = cell
