@@ -1,9 +1,21 @@
-#!/bin/zsh                                                                                                                                                                  
+#!/bin/zsh
 
-module load R/3.4.3
+#SBATCH -t 179
+#SBATCH -A GCAM
+#SBATCH -J runsurv
+
+
+####
+####  Run as:  sbatch -a 0-69 prepsurv.zsh inputdir outputdir
+####
+#### The inputdir should have the files drgt_matrix_*.pkl.  
+module purge
+module load gcc/8.1.0
 module load python/anaconda3.6
+source /share/apps/python/anaconda3.6/etc/profile.d/conda.sh 
+module load R/3.4.3
 
-date
+echo 'start time:  ' `date`
 
 indir=`readlink -e $1`
 echo "Input dir:  $indir"
@@ -15,11 +27,15 @@ script=`Rscript -e "cat(system.file('scripts/prepsurv/prepsurv.R', package='stay
 
 echo "Script file:  $script"
 
-cmd="source('$script'); npy2event(0, 1, '$indir', '$outdir', 12)"
+## Source the file with the necessary R functions in it and run the
+## survival analysis.  gcblksize = 10000, subblksize = 1000.
+## Since there are 67420 grid cells, that makes 7 blocks with 10
+## subblocks each, for a total of 70 tasks (numbered 0-69).
+cmd="source('$script'); run_sa($SLURM_ARRAY_TASK_ID , 10000, 1000, '$indir', '$outdir', 12)"
 
 echo $cmd
 time Rscript -e $cmd
 
 
-date
+echo 'end time:   ' `date`
 

@@ -2,73 +2,135 @@ library('stayinalive')
 library('hector')
 library('foreach')
 
-
-## Entry point for the batch scripts
+## Entry point for batch jobs
 ## taskid - array task id.  Should start at 0
-## ntask - number of tasks in the array
+## gcblksize - Number of grid cells in each block.  This was set in the previous
+##             processing step.
+## subblksize - Number of grid cells in each sub-block.  Sub-blocks allow us to process
+##             a portion of the data in an input file in order to keep memory usage under
+##             control
 ## inputdir - directory containing the numpy files
-## outputdir - directory to write event files into
-npy2event <- function(taskid, ntask, inputdir, outputdir, thresh=12)
+## outputdir - directory to write output into
+run_sa(taskid, gcblksize, subblksize, inputdir, outputdir, thresh=12)
 {
-    ## The input dir has a bunch of numpy files.
-    npyfiles <- list.files(inputdir, '\\.npy', full.names=TRUE)
-    print(npyfiles)
-    nfile <- length(npyfiles)
-    nbatch <- ceiling(nfile / ntask)
-    strt <- taskid * nbatch + 1
-    end <- (taskid + 1)*nbatch          # no +1 b/c the end point is included
+    ## Check to see that the outputdir exists and is writeable before we do all this work
+    outfilename <- file.path(outputdir, sprintf("survival-analysis_%03d.rds", taskid))
+    assertthat::is.writeable(outfilename)
 
-    print(paste('strt: ', strt))
-    print(paste('end: ', end))
-    infiles <- npyfiles[strt:end]
-    cat('infiles:\n')
-    cat(infiles, collapse='\n')
+    ## iterate over the 4 rcps, collect the events for a group of grid cells
+    ## for all of the runs, and perform the survival analysis
+
+    rcps_list <- lapply(1:4,
+                        function(ircp) {
+                            rcpevents(taskid, gcblksize, subblksize, ircp, inputdir, thresh)
+                        })
+
+    ## This is redundant with similar code in rcpevents(), but oh, well.  We need these
+    ## constants to turn our cell indices into global cell indices
+    ncell <- 67420                      # Total number of land grid cells at half-degree resolution
+    nblock <- ceiling(ncell / gcblksize)
+    nsubblk <- ceiling(gcblksize / subblksize)
+    blk <- taskid %% nblock
+    subblk <- floor(taskid / nblock)
+
+    cellid_offset <- blk*gcblksize + subblk*subblksize
+
+    ### Now, for each grid cell, concatenate the event tables from all 4 rcps and run the
+    ### proportional hazard analysis.  For each grid cell we will get a (single-row) table of:
+    ### cell_id  coef  expcoef  secoef  z  pvalue
+    nrcp <- length(rcps_list)
+    survival_list <-
+        foreach(cellid = seq_along(rcps_list[[1]])) %dopar% {
+            events <- data.table::rbindlist(
+                lapply(seq(1,nrcp),
+                       function(i) {
+                           rcps_list[[i]][[cellid]]
+                       }))
+            sa <- summary(coxph(Surv(tstart, tstop, drought)~Tg, data=events))
+            df <- as.data.frame(sa$coefficients)
+            ## The names of the covariates are stored in the row names.  We could turn these
+            ## into another column, but since we only have one covariate (Tg), we can dispense
+            ## with the names entirely
+            row.names(df) <- NULL
+            df$cellid <- cellid + cellid_offset
+        }
+
+    ## Now we need to collect this into a single table and write it out.  We could have
+    ## done this with the .combine feature of foreach, but I don't trust it to bind rows
+    ## efficiently.
+    survival_tbl <- data.table::rbindlist(survival_list)
+
+    ## Now we just need to write it out.
+    saveRDS(survival_tbl, outfilename, compress=TRUE)
+}
+
+## taskid - array task id.  Should start at 0
+## gcblksize - Number of grid cells in each block.  This was set in the previous
+##             processing step.
+## subblksize - Number of grid cells in each sub-block.  Sub-blocks allow us to process
+##             a portion of the data in an input file in order to keep memory usage under
+##             control
+## inputdir - directory containing the numpy files
+rcpevents <- function(taskid, gcblksize, subblksize, ircp,
+                      inputdir, thresh=12)
+{
+    ncell <- 67420                      # Total number of land grid cells at half-degree resolution
+    nblock <- ceiling(ncell / gcblksize)
+    nsubblk <- ceiling(gcblksize / subblksize)
+
+    ## The task id is calculated as:
+    ## tid = blk + Nblk*subblk            (all counts are zero-indexed).
+    ## This arrangement makes it more likely that concurrent processes (which are likely to
+    ## have adjacent task ids) will be looking at different files.
+    ## Therefore:  b = tid mod Nblk
+    ##             s = floor(tid / Nblk)
+    blk <- taskid %% nblock
+    subblk <- floor(taskid / nblock)
+
+    rcps <- c('rcp26', 'rcp45', 'rcp60', 'rcp85')
+    rcp <- rcps[ircp]
+    blkpattern <- sprintf('%s_batch-%03d\\.pkl', rcp, blk)
+
+    pklfiles <- list.files(inputdir, blkpattern, full.names=TRUE)
+    message('pklfiles:\n', paste("\t",pklfiles, collapse='\n'))
+    stopifnot(length(pklfiles) == 4)   # 4 models
+
+    strt <- subblksize * subblk + 1
+    end <- (subblk + 1) * subblksize          # no +1 b/c the end point is included
+
+    cellrng <- seq(strt,end)
+
+    celldata <- get_subblk(pklfiles, cellrng)   # returns a list of matrices, one for each grid cell,
+                                                # containing all runs (all ESMs and realizations) for each cell
 
     doParallel::registerDoParallel(cores=24)
 
     years <- 1861:2099
 
-    for(i in seq_along(infiles)) {
-        file <- infiles[i]
-        scenarioid <- strt + i
-        message('Processing file:  ', file)
-        grid <- readNPY(file)
+    ## We need global mean temperatures.  These came from hector runs in the
+    ## simulation, so that's where we will get them from here.
+    inifile_base <- paste0('hector_',rcp,'.ini')
+    inifile <- system.file('input',inifile_base, package='hector')
+    hcore <- newcore(inifile)
+    run(hcore, 2100)
+    tgav <- fetchvars(hcore, years, GLOBAL_TEMP())[['value']]
 
+
+    scenarioid <- ircp                         # used to compute unique ids across RCP groupings
+
+    ## Return the list of event tables for each grid cell
+    foreach(i=seq_along(celldata)) %dopar% {
         ## apply the duration threshold
-        message('....applying duration threshold')
-        grid <- t(apply(grid, 1, function(x) {apply_duration_thresh(x, thresh)}))
+        #message('....applying duration threshold')
+        ## get the time series for all the runs of the ith grid cell
+        tsmat <- celldata[[i]]
+        ## Apply the duration threshold.  apply binds the modified time series by column
+        ## instead of row, so we have to transpose the result to get time in columns again.
+        tsmat <- t(apply(tsmat, 1, function(x) {apply_duration_thresh(x, thresh)}))
 
-        ## We need global mean temperatures.  These came from hector runs in the
-        ## simulation, so that's where we will get them from here.
-        ## Unfortunately, we have to do this every time because we have no way
-        ## of knowing whether
-        rcp <- stringr::str_match(file, '_(rcp[0-9]+)_')[1,2]
-        inifile_base <- paste0('hector_',rcp,'.ini')
-        inifile <- system.file('input',inifile_base, package='hector')
-        hcore <- newcore(inifile)
-        run(hcore, 2100)
-        tgav <- fetchvars(hcore, years, GLOBAL_TEMP())[['value']]
-
-        message('....converting to events')
-        events_list <- tsmat2event(grid, tgav, scenarioid, 67420, length(years), combine=FALSE)
-
-        message('....separating and writing')
-        write_gridcell_temporaries(events_list, scenarioid, outputdir)
-        message('....done')
+        #message('....converting to events')
+        ## Event conversion:  the groupings are runs.  There are
+        nrun <- nrow(tsmat)               # Number of runs in the
+        events_list <- tsmat2event(tsmat, tgav, scenarioid, nrun, length(years))
     }
 }
-
-
-## Separate event arrays by grid cell (called "group" in the output) and write
-## them to the temporary files.
-write_gridcell_temporaries <- function(events_list, scenarioid, outputdir)
-{
-    foreach(ev = events_list) %dopar% {
-        cellid <- ev$groupid[1]
-        batchid <- floor(cellid/100)
-        outfile <- file.path(outputdir, batchid, cellid,
-                             paste0('temp_drgt_event_', cellid, '_', scenarioid, '.rds'))
-        saveRDS(ev, outfile)
-    }
-}
-
