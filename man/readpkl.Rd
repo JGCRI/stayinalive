@@ -4,10 +4,13 @@
 \alias{readpkl}
 \title{Read a pickled python object from a file}
 \usage{
-readpkl(filename)
+readpkl(filename, sublist = NULL)
 }
 \arguments{
 \item{filename}{Name of the file to read}
+
+\item{sublist}{If non-\code{NULL}, return the only the indices given (this will fail
+if the object read from the file is not a list).}
 }
 \value{
 An R object that more or less works like the python object; see details.

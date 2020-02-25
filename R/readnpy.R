@@ -18,14 +18,22 @@ readNPY <- function(filename)
 #' guess something like a named list.  If you try it sometime, let me know.
 #'
 #' @param filename Name of the file to read
+#' @param sublist If non-\code{NULL}, return the only the indices given (this will fail
+#' if the object read from the file is not a list).
 #' @return An R object that more or less works like the python object; see details.
 #' @export
-readpkl <- function(filename)
+readpkl <- function(filename, sublist=NULL)
 {
     bi <- reticulate::import('builtins')
     pkl <- reticulate::import('pickle')
     fh <- bi$open(filename,'rb')
     rtn <- pkl$load(fh)
     fh$close()
-    rtn
+    if (is.null(sublist)) {
+        rtn
+    }
+    else {
+        stopifnot(is.list(rtn))
+        rtn[sublist]
+    }
 }
