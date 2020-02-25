@@ -7,6 +7,7 @@ output: html_notebook
 ```{r setup}
 library(survival)        # standard R package for survival analysis
 library(stayinalive)     # functions we developed for processing time series.
+library(data.table)      # Faster data frames
 doParallel::registerDoParallel(cores=4)
 ```
 
@@ -66,6 +67,16 @@ here.
 cph_frail <- coxph(Surv(tstart, tstop, drought) ~ Tg + frailty(basinid), data=events)
 summary(cph_frail)
 ```
+
+Some of the datasets we will be dealing with are quite large.  Can we use a `data.table`
+for faster processing?
+
+```{r datatable}
+eventsdt <- as.data.table(events)
+cph_fdt <- coxph(Surv(tstart, tstop, drought) ~ Tg + frailty(basinid), data=eventsdt)
+summary(cph_fdt)
+```
+
 
 We may also want to add interaction terms to allow for the possibility that different basins
 have different responses to climate change.  If results from previous papers are any guide, 

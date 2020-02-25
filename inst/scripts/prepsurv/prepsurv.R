@@ -2,10 +2,6 @@ library('stayinalive')
 library('hector')
 library('foreach')
 
-#### Ugh.  I really should have reorganized the data while they were still in
-#### matrix format, then run the event conversion on tthe matrices collected by
-#### grid cell.  If we end up running this more than once, we should make that
-#### change.  It will probably be a lot easier on the disk situation.
 
 ## Entry point for the batch scripts
 ## taskid - array task id.  Should start at 0

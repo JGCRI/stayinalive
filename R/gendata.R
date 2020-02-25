@@ -142,7 +142,7 @@ ts2event <- function(ts, Tg, groupid, scenarioid, ngroup=300, neventmax=100)
 
                    ## Gather these into a data frame to be used by tmerge.
                    drought_data <-
-                       data.frame(id=uid, groupid=groupid, dtime=wtime, status=status)
+                       data.table::data.table(id=uid, groupid=groupid, dtime=wtime, status=status)
                    event_data <- survival::tmerge(drought_data[1:2],
                                                   drought_data, id=id,
                                                   drought=event(dtime, status))
@@ -160,15 +160,17 @@ ts2event <- function(ts, Tg, groupid, scenarioid, ngroup=300, neventmax=100)
                    if(length(yearidx) > 0) {
                        tstart <- yearstarts[yearidx] - startmonth
                        temp <- Tg[yearidx]                      # Global mean temperature for each year
-                       gmtemp <- data.frame(id=uid, groupid=groupid, time=tstart, temp=temp)
+                       gmtemp <- data.table::data.table(id=uid, groupid=groupid, time=tstart, temp=temp)
                    }
                    else {
-                       gmtemp <- data.frame(id=uid, groupid=groupid, time=0, temp=starttemp)
+                       gmtemp <- data.table::data.table(id=uid, groupid=groupid, time=0, temp=starttemp)
                    }
-                   survival::tmerge(event_data, gmtemp, id=id, Tg=tdc(time, temp), options=list(tdcstart=starttemp))
+                   data.table::as.data.table(
+                       survival::tmerge(event_data, gmtemp, id=id, Tg=tdc(time, temp), options=list(tdcstart=starttemp))
+                   )
                })
 
-    do.call(rbind, wtimes)
+    data.table::rbindlist(wtimes, idcol=FALSE)
 }
 
 
