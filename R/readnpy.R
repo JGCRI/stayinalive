@@ -38,3 +38,39 @@ readpkl <- function(filename, sublist=NULL)
         rtn[sublist[inrange]]
     }
 }
+
+#' Read a specific group of cells from a list of python pickle files
+#'
+#' Given a list of python pickle files, each containing runs for the same block of
+#' grid cells, extract the same subblock from each input file and merge them into a
+#' single dataset with all of the runs for each grid cell.
+#'
+#' The input files should be python pickle files, each containing a list of matrices.
+#' Each matrix should contain runs for a single grid cell, with runs in rows and time
+#' steps in columns.  All of the input files should contain data for the same grid cells,
+#' in the same order.
+#'
+#' @param filelist List of input filenames
+#' @param cellrng Vector of cell indices to extract
+#' @return A list of matrices.  Each matrix contains the merged set of runs from all of
+#' the input files for a single grid cell.
+#' @export
+get_subblk <- function(filelist, cellrng)
+{
+    message('Reading data...')
+    rawdata <- lapply(filelist, readpkl, sublist=cellrng)
+    message('\t... done.  Rawdata size= ')
+    print(object.size(rawdata), units='auto')
+    ## Now have a list of list of matrices. We need to convert this into a list of
+    ## matrices.
+    message('Combining matrices...')
+    rslt <-
+        lapply(seq_along(rawdata[[1]]),
+               function(j) {
+                   mlist <- lapply(seq_along(rawdata), function(i) {rawdata[[i]][[j]]})
+                   do.call(rbind, mlist)
+               })
+    message('\t... done.  Result size= ')
+    print(object.size(rslt), units='auto')
+    rslt
+}

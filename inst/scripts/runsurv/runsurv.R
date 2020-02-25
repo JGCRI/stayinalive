@@ -11,17 +11,19 @@ library('foreach')
 ##             control
 ## inputdir - directory containing the numpy files
 ## outputdir - directory to write output into
-run_sa(taskid, gcblksize, subblksize, inputdir, outputdir, thresh=12)
+run_sa <- function(taskid, gcblksize, subblksize, inputdir, outputdir, thresh=12)
 {
     ## Check to see that the outputdir exists and is writeable before we do all this work
     outfilename <- file.path(outputdir, sprintf("survival-analysis_%03d.rds", taskid))
-    assertthat::is.writeable(outfilename)
+    assertthat::is.writeable(outputdir)
 
     ## iterate over the 4 rcps, collect the events for a group of grid cells
     ## for all of the runs, and perform the survival analysis
 
+    message('Subblock size= ', subblksize)
     rcps_list <- lapply(1:4,
                         function(ircp) {
+                            message('Creating events for ircp= ', ircp)
                             rcpevents(taskid, gcblksize, subblksize, ircp, inputdir, thresh)
                         })
 
@@ -38,10 +40,11 @@ run_sa(taskid, gcblksize, subblksize, inputdir, outputdir, thresh=12)
     ### Now, for each grid cell, concatenate the event tables from all 4 rcps and run the
     ### proportional hazard analysis.  For each grid cell we will get a (single-row) table of:
     ### cell_id  coef  expcoef  secoef  z  pvalue
+    message('Running coxph.')
     nrcp <- length(rcps_list)
     survival_list <-
         foreach(cellid = seq_along(rcps_list[[1]])) %dopar% {
-            events <- data.table::rbindlist(
+                events <- data.table::rbindlist(
                 lapply(seq(1,nrcp),
                        function(i) {
                            rcps_list[[i]][[cellid]]

@@ -41,3 +41,17 @@ test_that('Reading a sublist from a pickle file works.', {
     filename2 <- 'data/testdata-nolist.pkl'
     expect_error(l1a <- readpkl(filename2, 1:2), 'is.list\\(rtn\\) is not TRUE')
 })
+
+test_that('Merging datasets from multiple files works.', {
+    filenames <- file.path('data', c('testdata.pkl', 'testdata2.pkl'))
+    idxs <- 2:5         # should only pick up elements 2-3, since that's all there are in the data.
+    l1 <- get_subblk(filenames, idxs)
+
+    m2a <- matrix(1, nrow=2, ncol=3)
+    m3a <- matrix(23, nrow=3, ncol=3)
+    m2b <- matrix(42, nrow=2, ncol=3)
+    m3b <- matrix(0, nrow=3, ncol=3)
+    l2 <- list(rbind(m2a, m2b), rbind(m3a, m3b))
+
+    expect_equal(l1, l2)
+})

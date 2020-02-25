@@ -6,7 +6,7 @@
 
 
 ####
-####  Run as:  sbatch -a 0-69 prepsurv.zsh inputdir outputdir
+####  Run as:  sbatch -a 0-69 runsurv.zsh inputdir outputdir
 ####
 #### The inputdir should have the files drgt_matrix_*.pkl.  
 module purge
@@ -23,7 +23,7 @@ echo "Input dir:  $indir"
 outdir=`readlink -e $2`
 echo "Output dir: $outdir"
 
-script=`Rscript -e "cat(system.file('scripts/prepsurv/prepsurv.R', package='stayinalive'))"`
+script=`Rscript -e "cat(system.file('scripts/runsurv/runsurv.R', package='stayinalive'))"`
 
 echo "Script file:  $script"
 
