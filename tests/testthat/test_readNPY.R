@@ -30,6 +30,13 @@ test_that('Reading a sublist from a pickle file works.', {
                matrix(1, nrow=2, ncol=3))
     expect_equal(l1, l2)
 
+    ## check that we handle the case when the sublist extends past the end of the list
+    ## (this can happen when we have a partial block of grid cells)
+    l1 <- readpkl(filename1, 2:5)
+    l2 <- list(matrix(1, nrow=2, ncol=3),
+               matrix(23, nrow=3, ncol=3))
+    expect_equal(l1, l2)
+
     ## reading something that is not a list should fail
     filename2 <- 'data/testdata-nolist.pkl'
     expect_error(l1a <- readpkl(filename2, 1:2), 'is.list\\(rtn\\) is not TRUE')

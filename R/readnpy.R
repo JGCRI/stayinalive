@@ -34,6 +34,7 @@ readpkl <- function(filename, sublist=NULL)
     }
     else {
         stopifnot(is.list(rtn))
-        rtn[sublist]
+        inrange <- sublist >= 1 & sublist <= length(rtn)
+        rtn[sublist[inrange]]
     }
 }
