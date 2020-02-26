@@ -1,6 +1,7 @@
 library('stayinalive')
 library('hector')
 library('foreach')
+library('survival')
 
 ## Entry point for batch jobs
 ## taskid - array task id.  Should start at 0
@@ -11,11 +12,13 @@ library('foreach')
 ##             control
 ## inputdir - directory containing the numpy files
 ## outputdir - directory to write output into
-run_sa <- function(taskid, gcblksize, subblksize, inputdir, outputdir, thresh=12)
+run_sa <- function(taskid, gcblksize, subblksize, inputdir, outputdir, thresh=12, DEBUG = FALSE)
 {
     ## Check to see that the outputdir exists and is writeable before we do all this work
     outfilename <- file.path(outputdir, sprintf("survival-analysis_%03d.rds", taskid))
     assertthat::is.writeable(outputdir)
+
+    doParallel::registerDoParallel(cores=24)
 
     ## iterate over the 4 rcps, collect the events for a group of grid cells
     ## for all of the runs, and perform the survival analysis
@@ -26,6 +29,11 @@ run_sa <- function(taskid, gcblksize, subblksize, inputdir, outputdir, thresh=12
                             message('Creating events for ircp= ', ircp)
                             rcpevents(taskid, gcblksize, subblksize, ircp, inputdir, thresh)
                         })
+
+    if(DEBUG) {
+        dbgfile <- 'debug.rds'
+        saveRDS(rcps_list, dbgfile)
+    }
 
     ## This is redundant with similar code in rcpevents(), but oh, well.  We need these
     ## constants to turn our cell indices into global cell indices
@@ -106,8 +114,6 @@ rcpevents <- function(taskid, gcblksize, subblksize, ircp,
     celldata <- get_subblk(pklfiles, cellrng)   # returns a list of matrices, one for each grid cell,
                                                 # containing all runs (all ESMs and realizations) for each cell
 
-    doParallel::registerDoParallel(cores=24)
-
     years <- 1861:2099
 
     ## We need global mean temperatures.  These came from hector runs in the
@@ -122,7 +128,7 @@ rcpevents <- function(taskid, gcblksize, subblksize, ircp,
     scenarioid <- ircp                         # used to compute unique ids across RCP groupings
 
     ## Return the list of event tables for each grid cell
-    foreach(i=seq_along(celldata)) %dopar% {
+    foreach(i=seq_along(celldata)) %do% {
         ## apply the duration threshold
         #message('....applying duration threshold')
         ## get the time series for all the runs of the ith grid cell

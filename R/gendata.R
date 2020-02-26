@@ -185,17 +185,13 @@ ts2event <- function(ts, Tg, groupid, scenarioid, ngroup=300, neventmax=100)
 #' @export
 tsmat2event <- function(tsmat, Tg, scenarioid, ngroup=300, neventmax=100, combine=TRUE)
 {
+    dflist <- foreach(groupid=seq(1, nrow(tsmat))) %dopar% {
+        ts2event(tsmat[groupid,], Tg, groupid, scenarioid, ngroup, neventmax)
+    }
     if(combine) {
-        foreach(groupid=seq(1, nrow(tsmat)), .combine=rbind) %dopar% {
-            ts2event(tsmat[groupid,], Tg, groupid, scenarioid, ngroup, neventmax)
-        }
+        data.table::rbindlist(dflist)
     }
     else {
-        ## These two branches are the same except for the .combine argument to foreach.
-        ## Kind of dumb that there is no way (that I can find) to specify explicitly that
-        ## we want the defaultbehavior.
-        foreach(groupid=seq(1, nrow(tsmat))) %dopar% {
-            ts2event(tsmat[groupid,], Tg, groupid, scenarioid, ngroup, neventmax)
-        }
+        dflist
     }
 }
