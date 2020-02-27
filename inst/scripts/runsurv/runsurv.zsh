@@ -1,12 +1,12 @@
 #!/bin/zsh
 
-#SBATCH -t 179
+#SBATCH -t 2160
 #SBATCH -A GCAM
 #SBATCH -J runsurv
 
 
 ####
-####  Run as:  sbatch -a 0-69 runsurv.zsh inputdir outputdir
+####  Run as:  sbatch -a 0-139 runsurv.zsh inputdir outputdir
 ####
 #### The inputdir should have the files drgt_matrix_*.pkl.  
 module purge
@@ -28,10 +28,10 @@ script=`Rscript -e "cat(system.file('scripts/runsurv/runsurv.R', package='stayin
 echo "Script file:  $script"
 
 ## Source the file with the necessary R functions in it and run the
-## survival analysis.  gcblksize = 10000, subblksize = 1000.
-## Since there are 67420 grid cells, that makes 7 blocks with 10
-## subblocks each, for a total of 70 tasks (numbered 0-69).
-cmd="source('$script'); run_sa($SLURM_ARRAY_TASK_ID , 10000, 1000, '$indir', '$outdir', 12)"
+## survival analysis.  gcblksize = 10000, subblksize = 500.
+## Since there are 67420 grid cells, that makes 7 blocks with 20
+## subblocks each, for a total of 140 tasks (numbered 0-139).
+cmd="source('$script'); run_sa($SLURM_ARRAY_TASK_ID , 10000, 500, '$indir', '$outdir', 12)"
 
 echo $cmd
 time Rscript -e $cmd
