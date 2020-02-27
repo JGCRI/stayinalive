@@ -26,7 +26,7 @@ run_sa <- function(taskid, gcblksize, subblksize, inputdir, outputdir, thresh=12
     message('Subblock size= ', subblksize)
     rcps_list <- lapply(1:4,
                         function(ircp) {
-                            message('Creating events for ircp= ', ircp)
+                            message(date(), ':  Creating events for ircp= ', ircp)
                             rcpevents(taskid, gcblksize, subblksize, ircp, inputdir, thresh)
                         })
 

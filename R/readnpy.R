@@ -57,13 +57,13 @@ readpkl <- function(filename, sublist=NULL)
 #' @export
 get_subblk <- function(filelist, cellrng)
 {
-    message('Reading data...')
+    message(date(), ':  Reading data...')
     rawdata <- lapply(filelist, readpkl, sublist=cellrng)
     message('\t... done.  Rawdata size= ')
     print(object.size(rawdata), units='auto')
     ## Now have a list of list of matrices. We need to convert this into a list of
     ## matrices.
-    message('Combining matrices...')
+    message(date(), ':  Combining matrices...')
     rslt <-
         lapply(seq_along(rawdata[[1]]),
                function(j) {
