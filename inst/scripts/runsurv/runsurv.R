@@ -48,6 +48,13 @@ run_sa <- function(taskid, gcblksize, subblksize, inputdir, outputdir, thresh=12
     ### Now, for each grid cell, concatenate the event tables from all 4 rcps and run the
     ### proportional hazard analysis.  For each grid cell we will get a (single-row) table of:
     ### cell_id  coef  expcoef  secoef  z  pvalue
+    ###
+    ### Some Cox model fitss will fail because there were no events (this happens if none of
+    ### the events in the time series reached the duration threshold).
+    cn <- c('coef', 'exp(coef)', 'se(coef)', 'z', 'Pr(>|z|)')
+    nodata <- matrix(nrow=1, ncol=length(cn))
+    colnames(nodata) <- cn
+
     message('Running coxph.')
     nrcp <- length(rcps_list)
     survival_list <-
@@ -57,13 +64,16 @@ run_sa <- function(taskid, gcblksize, subblksize, inputdir, outputdir, thresh=12
                        function(i) {
                            rcps_list[[i]][[cellid]]
                        }))
-            sa <- summary(coxph(Surv(tstart, tstop, drought)~Tg, data=events))
+            sa <- tryCatch(
+                summary(coxph(Surv(tstart, tstop, drought)~Tg, data=events)),
+                error = function(e) {list(coefficients=nodata)})
             df <- as.data.frame(sa$coefficients)
             ## The names of the covariates are stored in the row names.  We could turn these
             ## into another column, but since we only have one covariate (Tg), we can dispense
             ## with the names entirely
             row.names(df) <- NULL
             df$cellid <- cellid + cellid_offset
+            df
         }
 
     ## Now we need to collect this into a single table and write it out.  We could have
