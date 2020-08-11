@@ -8,8 +8,8 @@ from math import ceil
 
 from fastparquet import ParquetFile
 
-def get_pqfiles(inputdir, index, nproc):
-    pqfiles = glob.glob(os.path.join(inputdir, 'drought_duration*.parquet'))
+def get_pqfiles(inputdir, index, nproc, xanthos_var):
+    pqfiles = glob.glob(os.path.join(inputdir, 'drought_{}*.parquet'.format(xanthos_var)))
     pqfiles.sort()
     nfiles = len(pqfiles)
     nbatch = int(ceil(nfiles/nproc))
@@ -21,8 +21,8 @@ def get_pqfiles(inputdir, index, nproc):
     return pqfiles[istrt:istop]
 
 
-def convertfiles(pqfiles, outputdir):
-    patrn = r'drought_duration_trn_abcd_([^_]+)_([^_]+)_([0-9]+)'
+def convertfiles(pqfiles, outputdir, xanthos_var):
+    patrn = r'drought_{}_trn_abcd_([^_]+)_([^_]+)_([0-9]+)'.format(xanthos_var)
     cpatrn = re.compile(patrn)
 
     ngrid = 67420
@@ -44,7 +44,7 @@ def convertfiles(pqfiles, outputdir):
                 strt = i*ngrid
                 end = (i+1)*ngrid
                 arsv = ar[strt:end, :]
-                npyfilename = os.path.join(outputdir, f'duration_{model}_{scen}_{run}_{i}.npy')
+                npyfilename = os.path.join(outputdir, f'{xanthos_var}_{model}_{scen}_{run}_{i}.npy')
                 print(f'\tWriting: {npyfilename}')
                 np.save(npyfilename, arsv)
         else:
@@ -52,7 +52,7 @@ def convertfiles(pqfiles, outputdir):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         print(f"""Usage: {sys.argv[0]} <inputdir> <index> [<nproc> <outputdir>]
                   inputdir:  directory containing the parquet files
                   index:  array index of this process (used to determine which files will be processed
@@ -75,7 +75,12 @@ if __name__ == '__main__':
     else:
         outputdir = '.'
 
-    pqfiles = get_pqfiles(inputdir, index, nproc)
-    convertfiles(pqfiles, outputdir)
+    if len(sys.argv) > 5:
+        xanthos_var = str(sys.argv[5])
+    else:
+        xanthos_var = 'duration'  # default is to perform operation on all 'duration' files
+
+    pqfiles = get_pqfiles(inputdir, index, nproc, xanthos_var)
+    convertfiles(pqfiles, outputdir, xanthos_var)
         
     print('FIN.')
