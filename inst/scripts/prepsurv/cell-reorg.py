@@ -30,7 +30,8 @@ Therefore, the total number of jobs is 4*4*7 = 112 (running 0-111)
 
 3. Filenames for the Xanthos output data are constructed according to
 this template:
-    * f'duration_{model_name}_{rcp_name}_{irun}_{ifld}.npy'
+    * f'{xanthos_var}_{model_name}_{rcp_name}_{irun}_{ifld}.npy'
+    where xanthos_var can be duration, severity, or intensity
 The ifld variable is because each run generated multiple fields, which
 were separated in a previous step.  Each field from a run counts as a
 separate "run" for our purposes here.
@@ -78,10 +79,12 @@ m = tid % Nm
 modname = modnames[m]
 rcpname = rcpnames[r]
 
-files = glob.glob(os.path.join(indir, f'duration_{modname}_{rcpname}_*.npy'))
+xanthos_var = sys.argv[4]
+
+files = glob.glob(os.path.join(indir, f'{xanthos_var}_{modname}_{rcpname}_*.npy'))
 
 if len(files) == 0:
-    sys.stdout.write(f'No files matching pattern: duration_{modname}_{rcpname}_*.npy\n')
+    sys.stdout.write(f'No files matching pattern: {xanthos_var}_{modname}_{rcpname}_*.npy\n')
     sys.stdout.write(f'indir = {indir}')
     raise RuntimeError()
 else:
@@ -117,7 +120,7 @@ for icell in range(ncell):
     mats_by_cell[icell] = cell
 
 ## output to file
-outfilen = os.path.join(outdir, f'drgt_matrix_{modname}_{rcpname}_batch-{b:03d}.pkl')
+outfilen = os.path.join(outdir, f'drgt_matrix_{xanthos_var}_{modname}_{rcpname}_batch-{b:03d}.pkl')
 sys.stdout.write(f'\noutput file:  {outfilen}\n')
 sys.stdout.flush()
 outfile = open(outfilen, "wb")
